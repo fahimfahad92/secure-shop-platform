@@ -13,7 +13,7 @@
     { "key": "keycloakUrl", "value": "http://localhost:8081" },
     { "key": "realm", "value": "secure-shop" },
     { "key": "clientId", "value": "order-service-client" },
-    { "key": "clientSecret", "value": "fF3KSaa17b8E2HQbgKiNZ7UB5wHJnB8w" },
+    { "key": "clientSecret", "value": "" },
     { "key": "username", "value": "testuser" },
     { "key": "password", "value": "test" },
     { "key": "access_token", "value": "" },
