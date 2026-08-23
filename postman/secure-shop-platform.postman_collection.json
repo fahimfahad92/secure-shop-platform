@@ -1,0 +1,221 @@
+{
+  "info": {
+    "name": "secure-shop-platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "orderServiceBaseUrl", "value": "http://localhost:8080" },
+    { "key": "orderId", "value": "1" },
+    { "key": "keycloakUrl", "value": "http://localhost:8081" },
+    { "key": "realm", "value": "secure-shop" },
+    { "key": "clientId", "value": "order-service-client" },
+    { "key": "clientSecret", "value": "" },
+    { "key": "username", "value": "testuser" },
+    { "key": "password", "value": "test" },
+    { "key": "access_token", "value": "" },
+    { "key": "refresh_token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Get Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test(\"Token request successful\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(response.access_token).to.exist;",
+                  "});",
+                  "",
+                  "if (response.access_token) {",
+                  "    pm.collectionVariables.set(\"access_token\", response.access_token);",
+                  "    pm.environment.set(\"access_token\", response.access_token);",
+                  "}",
+                  "",
+                  "if (response.refresh_token) {",
+                  "    pm.collectionVariables.set(\"refresh_token\", response.refresh_token);",
+                  "    pm.environment.set(\"refresh_token\", response.refresh_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "password" },
+                { "key": "client_id", "value": "{{clientId}}" },
+                { "key": "client_secret", "value": "{{clientSecret}}" },
+                { "key": "username", "value": "{{username}}" },
+                { "key": "password", "value": "{{password}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+              "host": ["{{keycloakUrl}}"],
+              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "token"]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test(\"Refresh successful\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(response.access_token).to.exist;",
+                  "});",
+                  "",
+                  "if (response.access_token) {",
+                  "    pm.collectionVariables.set(\"access_token\", response.access_token);",
+                  "    pm.environment.set(\"access_token\", response.access_token);",
+                  "}",
+                  "",
+                  "if (response.refresh_token) {",
+                  "    pm.collectionVariables.set(\"refresh_token\", response.refresh_token);",
+                  "    pm.environment.set(\"refresh_token\", response.refresh_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "refresh_token" },
+                { "key": "client_id", "value": "{{clientId}}" },
+                { "key": "client_secret", "value": "{{clientSecret}}" },
+                { "key": "refresh_token", "value": "{{refresh_token}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+              "host": ["{{keycloakUrl}}"],
+              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "token"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Order Service",
+      "item": [
+        {
+          "name": "Create Order",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": 1,\n  \"quantity\": 2,\n  \"unitPrice\": 9.99\n}"
+            },
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/orders",
+              "host": ["{{orderServiceBaseUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Get All Orders",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/orders",
+              "host": ["{{orderServiceBaseUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Get Order By Id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/orders/{{orderId}}",
+              "host": ["{{orderServiceBaseUrl}}"],
+              "path": ["orders", "{{orderId}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Order",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 5,\n  \"status\": \"CONFIRMED\"\n}"
+            },
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/orders/{{orderId}}",
+              "host": ["{{orderServiceBaseUrl}}"],
+              "path": ["orders", "{{orderId}}"]
+            }
+          }
+        },
+        {
+          "name": "Delete Order",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/orders/{{orderId}}",
+              "host": ["{{orderServiceBaseUrl}}"],
+              "path": ["orders", "{{orderId}}"]
+            }
+          }
+        },
+        {
+          "name": "Create Order - Validation Error (400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": 1,\n  \"quantity\": 0,\n  \"unitPrice\": 9.99\n}"
+            },
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/orders",
+              "host": ["{{orderServiceBaseUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Get Order - Not Found (404)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/orders/999",
+              "host": ["{{orderServiceBaseUrl}}"],
+              "path": ["orders", "999"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
