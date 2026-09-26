@@ -1,0 +1,26 @@
+name: product-service
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - backend/product-service/**
+      - .github/workflows/product-service.yml
+      - .github/workflows/build-service.yml
+  push:
+    branches: [main]
+    paths:
+      - backend/product-service/**
+      - .github/workflows/product-service.yml
+      - .github/workflows/build-service.yml
+  workflow_dispatch:
+
+concurrency:
+  group: product-service-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-service.yml
+    with:
+      service: product-service

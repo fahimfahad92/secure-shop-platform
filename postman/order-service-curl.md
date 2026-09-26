@@ -1,31 +1,57 @@
 # order-service — curl requests
 
-Paste any of these into Postman via **Import → Raw text** to auto-generate a request, or run directly. Assumes service is up on `localhost:8080` (`docker compose -f docker/docker-compose.yml up -d` for Postgres, then `mvnw spring-boot:run` in `backend/order-service`).
+Paste any of these into Postman via **Import → Raw text** to auto-generate a request, or run
+directly. Assumes Postgres + Keycloak are up (`docker compose -f docker/docker-compose.yml up -d`),
+Product Service is running on `localhost:8082`, and Order Service is running on `localhost:8080`
+(`./mvnw spring-boot:run` in each service folder).
+
+Every `/orders` endpoint needs a bearer token: `orders:read` for `GET`, `orders:write` for the rest.
+
+## Get a token
+
+```bash
+TOKEN=$(curl -s -X POST http://localhost:8081/realms/secure-shop/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=password" \
+  -d "client_id=order-service-client" \
+  -d "client_secret=<client secret>" \
+  -d "username=testuser" \
+  -d "password=<testuser password>" | jq -r .access_token)
+```
 
 ## Create Order
 
+Price is **not** sent by the client — Order Service looks the product up in Product Service and uses
+the catalog price. The request carries only what the client legitimately decides: which product, how
+many.
+
 ```bash
 curl -X POST http://localhost:8080/orders \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"productId":1,"quantity":2,"unitPrice":9.99}'
+  -d '{"productId":1,"quantity":2}'
 ```
+
+Requires an existing product with id `1` — create one via
+[`product-service-curl.md`](product-service-curl.md) first.
 
 ## Get All Orders
 
 ```bash
-curl http://localhost:8080/orders
+curl http://localhost:8080/orders -H "Authorization: Bearer $TOKEN"
 ```
 
 ## Get Order By Id
 
 ```bash
-curl http://localhost:8080/orders/1
+curl http://localhost:8080/orders/1 -H "Authorization: Bearer $TOKEN"
 ```
 
 ## Update Order
 
 ```bash
 curl -X PUT http://localhost:8080/orders/1 \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"quantity":5,"status":"CONFIRMED"}'
 ```
@@ -33,19 +59,59 @@ curl -X PUT http://localhost:8080/orders/1 \
 ## Delete Order
 
 ```bash
-curl -X DELETE http://localhost:8080/orders/1
+curl -X DELETE http://localhost:8080/orders/1 -H "Authorization: Bearer $TOKEN"
 ```
 
 ## Validation Error (400)
 
 ```bash
 curl -X POST http://localhost:8080/orders \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"productId":1,"quantity":0,"unitPrice":9.99}'
+  -d '{"productId":1,"quantity":0}'
 ```
 
-## Not Found (404)
+## Unknown Product (400)
+
+The product lookup fails, so the order is rejected as a bad request — the missing thing is the
+product in the request body, not the `/orders/{id}` resource.
 
 ```bash
-curl http://localhost:8080/orders/999
+curl -i -X POST http://localhost:8080/orders \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"productId":999999,"quantity":1}'
+```
+
+## Insufficient Stock (409)
+
+```bash
+curl -i -X POST http://localhost:8080/orders \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"productId":1,"quantity":100000}'
+```
+
+## Product Service Down (503)
+
+Stop Product Service, then place an order. Order Service cannot price the order, so it reports the
+dependency failure rather than guessing.
+
+```bash
+curl -i -X POST http://localhost:8080/orders \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"productId":1,"quantity":1}'
+```
+
+## Order Not Found (404)
+
+```bash
+curl http://localhost:8080/orders/999 -H "Authorization: Bearer $TOKEN"
+```
+
+## No Token (401)
+
+```bash
+curl -i http://localhost:8080/orders
 ```

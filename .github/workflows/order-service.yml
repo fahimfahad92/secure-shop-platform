@@ -1,0 +1,26 @@
+name: order-service
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - backend/order-service/**
+      - .github/workflows/order-service.yml
+      - .github/workflows/build-service.yml
+  push:
+    branches: [main]
+    paths:
+      - backend/order-service/**
+      - .github/workflows/order-service.yml
+      - .github/workflows/build-service.yml
+  workflow_dispatch:
+
+concurrency:
+  group: order-service-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-service.yml
+    with:
+      service: order-service

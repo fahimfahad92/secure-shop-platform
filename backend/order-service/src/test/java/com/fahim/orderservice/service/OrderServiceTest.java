@@ -3,12 +3,17 @@ package com.fahim.orderservice.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.fahim.orderservice.client.ProductClient;
+import com.fahim.orderservice.client.ProductSnapshot;
 import com.fahim.orderservice.dto.CreateOrderRequest;
 import com.fahim.orderservice.dto.UpdateOrderRequest;
+import com.fahim.orderservice.exception.InsufficientStockException;
 import com.fahim.orderservice.exception.OrderNotFoundException;
+import com.fahim.orderservice.exception.ProductNotFoundException;
 import com.fahim.orderservice.model.Order;
 import com.fahim.orderservice.model.OrderStatus;
 import com.fahim.orderservice.repository.OrderRepository;
@@ -26,21 +31,57 @@ class OrderServiceTest {
 
     @Mock private OrderRepository orderRepository;
 
+    @Mock private ProductClient productClient;
+
     @InjectMocks private OrderService orderService;
 
     @Test
-    void create_setsStatusPendingAndCalculatesTotalPrice() {
-        CreateOrderRequest request = new CreateOrderRequest(1L, 3, new BigDecimal("10.00"));
+    void create_takesPriceFromProductServiceAndCalculatesTotalPrice() {
+        when(productClient.fetchProduct(1L))
+                .thenReturn(new ProductSnapshot(1L, "Keyboard", new BigDecimal("10.00"), 100));
         when(orderRepository.save(any(Order.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        Order result = orderService.create(request);
+        Order result = orderService.create(new CreateOrderRequest(1L, 3));
 
         assertThat(result.getProductId()).isEqualTo(1L);
         assertThat(result.getQuantity()).isEqualTo(3);
         assertThat(result.getUnitPrice()).isEqualByComparingTo("10.00");
         assertThat(result.getTotalPrice()).isEqualByComparingTo("30.00");
         verify(orderRepository).save(any(Order.class));
+    }
+
+    @Test
+    void create_quantityEqualToStock_isAllowed() {
+        when(productClient.fetchProduct(1L))
+                .thenReturn(new ProductSnapshot(1L, "Keyboard", new BigDecimal("10.00"), 5));
+        when(orderRepository.save(any(Order.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        Order result = orderService.create(new CreateOrderRequest(1L, 5));
+
+        assertThat(result.getQuantity()).isEqualTo(5);
+    }
+
+    @Test
+    void create_quantityAboveStock_throwsAndPersistsNothing() {
+        when(productClient.fetchProduct(1L))
+                .thenReturn(new ProductSnapshot(1L, "Keyboard", new BigDecimal("10.00"), 2));
+
+        assertThatThrownBy(() -> orderService.create(new CreateOrderRequest(1L, 3)))
+                .isInstanceOf(InsufficientStockException.class)
+                .hasMessageContaining("requested 3")
+                .hasMessageContaining("available 2");
+        verify(orderRepository, never()).save(any(Order.class));
+    }
+
+    @Test
+    void create_unknownProduct_propagatesAndPersistsNothing() {
+        when(productClient.fetchProduct(404L)).thenThrow(new ProductNotFoundException(404L));
+
+        assertThatThrownBy(() -> orderService.create(new CreateOrderRequest(404L, 1)))
+                .isInstanceOf(ProductNotFoundException.class);
+        verify(orderRepository, never()).save(any(Order.class));
     }
 
     @Test

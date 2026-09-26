@@ -1,4 +1,4 @@
-package com.fahim.orderservice;
+package com.fahim.productservice;
 
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.testcontainers.containers.PostgreSQLContainer;

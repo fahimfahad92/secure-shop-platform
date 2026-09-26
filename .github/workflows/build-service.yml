@@ -1,0 +1,53 @@
+name: Build service
+
+# Reusable build for one Maven service under backend/. Each service has a thin
+# caller workflow that supplies the folder name and its own path filter, so a
+# change to one service does not rebuild the others.
+on:
+  workflow_call:
+    inputs:
+      service:
+        description: Folder name under backend/ (e.g. order-service)
+        required: true
+        type: string
+      java-version:
+        description: JDK version to build with
+        required: false
+        type: string
+        default: "21"
+
+jobs:
+  build:
+    name: ${{ inputs.service }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend/${{ inputs.service }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ inputs.java-version }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.java-version }}
+          cache: maven
+
+      - name: Check formatting
+        run: ./mvnw -B -ntp spotless:check
+
+      # Integration tests use Testcontainers; the ubuntu-latest runner has a
+      # working Docker daemon, so no extra service container is needed here.
+      - name: Build and test
+        run: ./mvnw -B -ntp verify
+
+      - name: Upload test reports
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports-${{ inputs.service }}
+          path: backend/${{ inputs.service }}/target/surefire-reports/
+          if-no-files-found: ignore
+          retention-days: 7
