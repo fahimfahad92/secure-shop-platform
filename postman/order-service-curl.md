@@ -7,6 +7,10 @@ Product Service is running on `localhost:8082`, and Order Service is running on 
 
 Every `/orders` endpoint needs a bearer token: `orders:read` for `GET`, `orders:write` for the rest.
 
+As of Phase 3 orders also belong to the `sub` in the token. `GET /orders` returns only the caller's
+own orders, and another user's order answers `404` rather than `403` — a 403 would confirm that the
+id exists.
+
 ## Get a token
 
 ```bash
@@ -109,6 +113,17 @@ curl -i -X POST http://localhost:8080/orders \
 ```bash
 curl http://localhost:8080/orders/999 -H "Authorization: Bearer $TOKEN"
 ```
+
+## Another User's Order (404)
+
+Place an order with one user's token, then fetch it by id with a different user's token (see
+[`user-service-curl.md`](user-service-curl.md) for registering a second user):
+
+```bash
+curl -i http://localhost:8080/orders/1 -H "Authorization: Bearer $OTHER_USERS_TOKEN"
+```
+
+Indistinguishable from an order that never existed, which is the point. Same for `PUT` and `DELETE`.
 
 ## No Token (401)
 

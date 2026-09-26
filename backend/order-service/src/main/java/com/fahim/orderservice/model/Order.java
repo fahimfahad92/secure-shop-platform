@@ -21,6 +21,10 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** Keycloak {@code sub} of the user who placed the order. Set once, never reassigned. */
+    @Column(name = "user_sub", nullable = false, updatable = false)
+    private String userSub;
+
     @Column(nullable = false)
     private Long productId;
 
@@ -64,6 +68,14 @@ public class Order {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getUserSub() {
+        return userSub;
+    }
+
+    public void setUserSub(String userSub) {
+        this.userSub = userSub;
     }
 
     public Long getProductId() {
