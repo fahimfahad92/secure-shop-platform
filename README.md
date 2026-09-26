@@ -147,3 +147,19 @@ cd backend/order-service && ./mvnw test     # 22 tests
 
 Both use a single Testcontainers Postgres per JVM. `AbstractIntegrationTest` starts it in a static initializer rather than via `@Container`, because the `@Container` lifecycle stops the container between test classes and restarts it on a new port while Spring reuses its cached context pointing at the old one.
 
+
+## CI
+
+GitHub Actions builds each service independently:
+
+| Workflow | Triggers |
+|---|---|
+| `.github/workflows/order-service.yml` | PRs to `main` and pushes to `main` touching `backend/order-service/**`, plus **Run workflow** in the Actions tab |
+| `.github/workflows/product-service.yml` | same, for `backend/product-service/**` |
+| `.github/workflows/build-service.yml` | reusable — not triggered directly; the two above call it with a service name |
+
+Each run checks formatting (`./mvnw spotless:check`), then builds and tests (`./mvnw verify`), and uploads the surefire reports as an artifact. Integration tests use Testcontainers against the runner's own Docker daemon, so no service containers are declared.
+
+Path filters mean a change under one service does not rebuild the other, and each service gets its own status check on the PR. Adding a service later means one more thin caller workflow, not a copy of the build steps.
+
+Scope is deliberately build-and-test only — scanning, SBOMs and image hardening belong to the DevSecOps pipeline project (`project-ideas/04`), which targets this repo later.
