@@ -13,6 +13,10 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Every method is scoped to the caller's Keycloak {@code sub}. A valid token is not enough — it has
+ * to be the token of the user who owns the order.
+ */
 @Service
 @Transactional
 public class OrderService {
@@ -25,7 +29,7 @@ public class OrderService {
         this.productClient = productClient;
     }
 
-    public Order create(CreateOrderRequest request) {
+    public Order create(String userSub, CreateOrderRequest request) {
         ProductSnapshot product = productClient.fetchProduct(request.productId());
         if (product.stock() < request.quantity()) {
             throw new InsufficientStockException(
@@ -33,6 +37,7 @@ public class OrderService {
         }
 
         Order order = new Order();
+        order.setUserSub(userSub);
         order.setProductId(product.id());
         order.setQuantity(request.quantity());
         order.setUnitPrice(product.price());
@@ -41,25 +46,27 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public List<Order> getAll() {
-        return orderRepository.findAll();
+    public List<Order> getAll(String userSub) {
+        return orderRepository.findByUserSub(userSub);
     }
 
     @Transactional(readOnly = true)
-    public Order getById(Long id) {
-        return orderRepository.findById(id).orElseThrow(() -> new OrderNotFoundException(id));
+    public Order getById(String userSub, Long id) {
+        return orderRepository
+                .findByIdAndUserSub(id, userSub)
+                .orElseThrow(() -> new OrderNotFoundException(id));
     }
 
-    public Order update(Long id, UpdateOrderRequest request) {
-        Order order = getById(id);
+    public Order update(String userSub, Long id, UpdateOrderRequest request) {
+        Order order = getById(userSub, id);
         order.setQuantity(request.quantity());
         order.setStatus(request.status());
         order.setTotalPrice(order.getUnitPrice().multiply(BigDecimal.valueOf(request.quantity())));
         return orderRepository.save(order);
     }
 
-    public void delete(Long id) {
-        Order order = getById(id);
+    public void delete(String userSub, Long id) {
+        Order order = getById(userSub, id);
         orderRepository.delete(order);
     }
 }

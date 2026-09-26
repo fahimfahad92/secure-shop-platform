@@ -1,0 +1,26 @@
+name: user-service
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - backend/user-service/**
+      - .github/workflows/user-service.yml
+      - .github/workflows/build-service.yml
+  push:
+    branches: [main]
+    paths:
+      - backend/user-service/**
+      - .github/workflows/user-service.yml
+      - .github/workflows/build-service.yml
+  workflow_dispatch:
+
+concurrency:
+  group: user-service-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-service.yml
+    with:
+      service: user-service

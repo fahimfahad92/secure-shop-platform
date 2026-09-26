@@ -11,7 +11,7 @@ Architecture: an API Gateway (BFF) is the single entry point for clients, fronti
 | 0 | ✅ Done | Order Service: plain CRUD REST API, Postgres, Flyway-owned schema. No auth — the "before" baseline every later phase secures. |
 | 1 | ✅ Done | Order Service becomes a Resource Server: Keycloak added to docker-compose, JWT validated against its JWKS, `orders:read`/`orders:write` scopes required. Tokens obtained manually via the Keycloak admin console for now. |
 | 2 | ✅ Done | Product Service: public product catalog. `GET` endpoints need no auth (the deliberate public case); writes require the `product-admin` realm role. Order Service calls Product Service when placing an order, and prices the order from the catalog instead of trusting the client. |
-| 3 | Not started | User Service: profile data keyed by Keycloak's `sub`. `/register` creates both a Keycloak user (via Admin API) and a local profile row, with compensating delete if the local write fails. Order Service starts checking ownership via `sub`. |
+| 3 | ✅ Done | User Service: profile data keyed by Keycloak's `sub`. `/register` creates both a Keycloak user (via Admin API) and a local profile row, with compensating delete if the local write fails. Order Service scopes every order to the caller's `sub`. |
 | 4 | Not started | API Gateway (BFF): single entry point for all client traffic. Holds the session — sets an `HttpOnly` cookie, translates it to a bearer token on proxied calls, lets public `GET /products/**` through unauthenticated while gating everything else. Browser never sees Keycloak or a raw JWT. |
 
 Phases 0–4 are the backend-complete v1, driven via curl/Postman. A Next.js frontend and deeper security-hardening phases follow once v1 is done.
@@ -148,6 +148,67 @@ cd backend/order-service && ./mvnw test     # 22 tests
 Both use a single Testcontainers Postgres per JVM. `AbstractIntegrationTest` starts it in a static initializer rather than via `@Container`, because the `@Container` lifecycle stops the container between test classes and restarts it on a new port while Spring reuses its cached context pointing at the old one.
 
 
+## Phase 3 — User Service (profiles + registration orchestration)
+
+Three services now. User Service (`:8083`) owns profile data; Keycloak still owns identity and credentials.
+
+- `POST /users/register` — **public**, the only unauthenticated write in the project. A new user has no token yet, so there is nothing it could present.
+- `GET`/`PUT`/`DELETE /users/me` — the caller is resolved from the token's `sub`. There is no `/users/{id}`, so there is no id for a client to substitute.
+- `UpdateProfileRequest` carries `fullName`, `address` and `phone` only. Sending `username` or `email` changes nothing — identity belongs to Keycloak, and a profile update is not the place to edit it.
+
+### Registration spans two systems
+
+`POST /users/register` creates the Keycloak user via the Admin API, then writes the local profile row keyed by the returned `sub`. There is no transaction across the two.
+
+If the profile write fails, the Keycloak user is deleted again. Without that compensation the username stays taken in Keycloak and the user gets a baffling "already exists" on their next attempt. If the compensating delete *also* fails, the user is orphaned in Keycloak and that is logged as `ORPHANED KEYCLOAK USER <sub>` — nothing else would notice. Closing that remaining window properly is what the Outbox stretch phase is for.
+
+`register` is deliberately **not** `@Transactional`: the Keycloak call is not transactional, and annotating the pair would only suggest it was.
+
+### Admin API access
+
+User Service authenticates to Keycloak as the `user-service-admin-client` service account (Client Credentials grant), holding only `manage-users` and `view-users` on `realm-management` — not `realm-admin`, and not the master-realm bootstrap admin. The token is cached in memory and refreshed 30 seconds before expiry.
+
+The secret comes from the environment with no fallback, so a missing value fails startup instead of failing the first registration:
+
+```properties
+keycloak.admin.client-secret=${KEYCLOAK_ADMIN_CLIENT_SECRET}
+```
+
+### Orders became per-user
+
+`V2` adds `user_sub NOT NULL` to `orders` plus an index, and deletes pre-Phase-3 rows — they have no owner and there is no correct value to backfill.
+
+- `create` stamps the owner from the token; the column is `updatable = false`
+- `GET /orders` returns only the caller's orders
+- `GET`/`PUT`/`DELETE /orders/{id}` answer **404** for someone else's order, not 403. Ownership is part of the repository query (`findByIdAndUserSub`), so a miss is indistinguishable from a non-existent order and the id cannot be probed for existence
+
+### Run it
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+
+export KEYCLOAK_ADMIN_CLIENT_SECRET=<user-service-admin-client secret>
+cd backend/user-service && ./mvnw spring-boot:run    # :8083
+cd backend/product-service && ./mvnw spring-boot:run # :8082
+cd backend/order-service && ./mvnw spring-boot:run   # :8080
+```
+
+Keycloak needs the `user-service-admin-client` service account described above; realm setup is still manual via the admin console.
+
+### Try it
+
+Register, log in as that user, then use the profile and order endpoints: [`postman/user-service-curl.md`](postman/user-service-curl.md), or the Postman collection's **User Service** folder followed by **Auth → Get Token (registered user)**.
+
+### Tests
+
+```bash
+cd backend/user-service && ./mvnw test     # 17 tests
+cd backend/order-service && ./mvnw test    # 27 tests
+cd backend/product-service && ./mvnw test  # 20 tests
+```
+
+User Service supplies the service account secret through `@TestPropertySource` on `AbstractIntegrationTest`, not a test `application.properties` — a test file of that name shadows the main one by classpath precedence and would take the resource server config down with it.
+
 ## CI
 
 GitHub Actions builds each service independently:
@@ -156,6 +217,7 @@ GitHub Actions builds each service independently:
 |---|---|
 | `.github/workflows/order-service.yml` | PRs to `main` and pushes to `main` touching `backend/order-service/**`, plus **Run workflow** in the Actions tab |
 | `.github/workflows/product-service.yml` | same, for `backend/product-service/**` |
+| `.github/workflows/user-service.yml` | same, for `backend/user-service/**` |
 | `.github/workflows/build-service.yml` | reusable — not triggered directly; the two above call it with a service name |
 
 Each run checks formatting (`./mvnw spotless:check`), then builds and tests (`./mvnw verify`), and uploads the surefire reports as an artifact. Integration tests use Testcontainers against the runner's own Docker daemon, so no service containers are declared.

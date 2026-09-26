@@ -73,6 +73,22 @@
     {
       "key": "admin_access_token",
       "value": ""
+    },
+    {
+      "key": "userServiceBaseUrl",
+      "value": "http://localhost:8083"
+    },
+    {
+      "key": "registerUsername",
+      "value": "janedoe"
+    },
+    {
+      "key": "registerEmail",
+      "value": "janedoe@example.com"
+    },
+    {
+      "key": "registerPassword",
+      "value": "correct-horse-battery"
     }
   ],
   "item": [
@@ -302,6 +318,77 @@
               ]
             }
           }
+        },
+        {
+          "name": "Get Token (registered user)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test(\"Token request successful\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(response.access_token).to.exist;",
+                  "});",
+                  "",
+                  "if (response.access_token) {",
+                  "    pm.collectionVariables.set(\"access_token\", response.access_token);",
+                  "    pm.environment.set(\"access_token\", response.access_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{clientId}}"
+                },
+                {
+                  "key": "client_secret",
+                  "value": "{{clientSecret}}"
+                },
+                {
+                  "key": "username",
+                  "value": "{{registerUsername}}"
+                },
+                {
+                  "key": "password",
+                  "value": "{{registerPassword}}"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+              "host": [
+                "{{keycloakUrl}}"
+              ],
+              "path": [
+                "realms",
+                "{{realm}}",
+                "protocol",
+                "openid-connect",
+                "token"
+              ]
+            }
+          }
         }
       ]
     },
@@ -496,8 +583,27 @@
               "raw": "{\n  \"productId\": {{productId}},\n  \"quantity\": 100000\n}"
             }
           }
+        },
+        {
+          "name": "Get Order - Another User's Order (404)",
+          "description": "Place an order as one user, then re-run Auth > Get Token as a different user and fetch it by id: 404, not 403.",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/orders/{{orderId}}",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}"
+              ]
+            }
+          }
         }
-      ]
+      ],
+      "description": "Orders belong to the sub in the token. GET /orders returns only the caller's orders, and another user's order responds 404 rather than 403 so its existence is not confirmed."
     },
     {
       "name": "Product Service",
@@ -741,6 +847,205 @@
               "path": [
                 "products",
                 "999999"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "User Service",
+      "description": "POST /users/register is public — a new user has no token yet. Everything else is /users/me, resolved from the token's sub, so there is no id to tamper with. Run Auth > Get Token (registered user) after registering.",
+      "item": [
+        {
+          "name": "Register (public, no token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{userServiceBaseUrl}}/users/register",
+              "host": [
+                "{{userServiceBaseUrl}}"
+              ],
+              "path": [
+                "users",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{registerUsername}}\",\n  \"email\": \"{{registerEmail}}\",\n  \"password\": \"{{registerPassword}}\",\n  \"fullName\": \"Jane Doe\",\n  \"address\": \"12 Example Road\",\n  \"phone\": \"0170000000\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{userServiceBaseUrl}}/users/me",
+              "host": [
+                "{{userServiceBaseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update My Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{userServiceBaseUrl}}/users/me",
+              "host": [
+                "{{userServiceBaseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Jane R. Doe\",\n  \"address\": \"99 Other Street\",\n  \"phone\": \"0180000000\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update My Profile - username/email ignored (mass assignment)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{userServiceBaseUrl}}/users/me",
+              "host": [
+                "{{userServiceBaseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Jane R. Doe\",\n  \"address\": \"99 Other Street\",\n  \"username\": \"someone-else\",\n  \"email\": \"someone-else@example.com\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete My Profile (also deletes the Keycloak user)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{userServiceBaseUrl}}/users/me",
+              "host": [
+                "{{userServiceBaseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Register - Duplicate Username (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{userServiceBaseUrl}}/users/register",
+              "host": [
+                "{{userServiceBaseUrl}}"
+              ],
+              "path": [
+                "users",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{registerUsername}}\",\n  \"email\": \"{{registerEmail}}\",\n  \"password\": \"{{registerPassword}}\",\n  \"fullName\": \"Jane Doe\",\n  \"address\": \"12 Example Road\",\n  \"phone\": \"0170000000\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Register - Validation Error (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{userServiceBaseUrl}}/users/register",
+              "host": [
+                "{{userServiceBaseUrl}}"
+              ],
+              "path": [
+                "users",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"a\",\n  \"email\": \"not-an-email\",\n  \"password\": \"short\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Get My Profile - No Token (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{userServiceBaseUrl}}/users/me",
+              "host": [
+                "{{userServiceBaseUrl}}"
+              ],
+              "path": [
+                "users",
+                "me"
               ]
             },
             "auth": {

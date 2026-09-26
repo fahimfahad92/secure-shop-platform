@@ -29,6 +29,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
 
+    private static final String SUB = "7663bcb4-5f41-4b73-a47c-534a052c5a93";
+
     @Mock private OrderRepository orderRepository;
 
     @Mock private ProductClient productClient;
@@ -36,19 +38,19 @@ class OrderServiceTest {
     @InjectMocks private OrderService orderService;
 
     @Test
-    void create_takesPriceFromProductServiceAndCalculatesTotalPrice() {
+    void create_stampsTheCallersSubAndPricesFromProductService() {
         when(productClient.fetchProduct(1L))
                 .thenReturn(new ProductSnapshot(1L, "Keyboard", new BigDecimal("10.00"), 100));
         when(orderRepository.save(any(Order.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        Order result = orderService.create(new CreateOrderRequest(1L, 3));
+        Order result = orderService.create(SUB, new CreateOrderRequest(1L, 3));
 
+        assertThat(result.getUserSub()).isEqualTo(SUB);
         assertThat(result.getProductId()).isEqualTo(1L);
         assertThat(result.getQuantity()).isEqualTo(3);
         assertThat(result.getUnitPrice()).isEqualByComparingTo("10.00");
         assertThat(result.getTotalPrice()).isEqualByComparingTo("30.00");
-        verify(orderRepository).save(any(Order.class));
     }
 
     @Test
@@ -58,9 +60,8 @@ class OrderServiceTest {
         when(orderRepository.save(any(Order.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        Order result = orderService.create(new CreateOrderRequest(1L, 5));
-
-        assertThat(result.getQuantity()).isEqualTo(5);
+        assertThat(orderService.create(SUB, new CreateOrderRequest(1L, 5)).getQuantity())
+                .isEqualTo(5);
     }
 
     @Test
@@ -68,7 +69,7 @@ class OrderServiceTest {
         when(productClient.fetchProduct(1L))
                 .thenReturn(new ProductSnapshot(1L, "Keyboard", new BigDecimal("10.00"), 2));
 
-        assertThatThrownBy(() -> orderService.create(new CreateOrderRequest(1L, 3)))
+        assertThatThrownBy(() -> orderService.create(SUB, new CreateOrderRequest(1L, 3)))
                 .isInstanceOf(InsufficientStockException.class)
                 .hasMessageContaining("requested 3")
                 .hasMessageContaining("available 2");
@@ -79,44 +80,52 @@ class OrderServiceTest {
     void create_unknownProduct_propagatesAndPersistsNothing() {
         when(productClient.fetchProduct(404L)).thenThrow(new ProductNotFoundException(404L));
 
-        assertThatThrownBy(() -> orderService.create(new CreateOrderRequest(404L, 1)))
+        assertThatThrownBy(() -> orderService.create(SUB, new CreateOrderRequest(404L, 1)))
                 .isInstanceOf(ProductNotFoundException.class);
         verify(orderRepository, never()).save(any(Order.class));
     }
 
     @Test
-    void getById_found_returnsOrder() {
-        Order order = new Order();
-        order.setId(1L);
-        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+    void getAll_returnsOnlyTheCallersOrders() {
+        when(orderRepository.findByUserSub(SUB)).thenReturn(List.of(new Order(), new Order()));
 
-        Order result = orderService.getById(1L);
-
-        assertThat(result.getId()).isEqualTo(1L);
+        assertThat(orderService.getAll(SUB)).hasSize(2);
     }
 
     @Test
-    void getById_notFound_throwsOrderNotFoundException() {
-        when(orderRepository.findById(99L)).thenReturn(Optional.empty());
+    void getById_ownedByCaller_returnsOrder() {
+        Order order = new Order();
+        order.setId(1L);
+        order.setUserSub(SUB);
+        when(orderRepository.findByIdAndUserSub(1L, SUB)).thenReturn(Optional.of(order));
 
-        assertThatThrownBy(() -> orderService.getById(99L))
-                .isInstanceOf(OrderNotFoundException.class)
-                .hasMessageContaining("99");
+        assertThat(orderService.getById(SUB, 1L).getId()).isEqualTo(1L);
+    }
+
+    @Test
+    void getById_ownedBySomeoneElse_throwsOrderNotFoundException() {
+        // The repository query includes the sub, so another user's order looks exactly like an
+        // order that does not exist — no way to probe for its existence.
+        when(orderRepository.findByIdAndUserSub(1L, "another-sub")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> orderService.getById("another-sub", 1L))
+                .isInstanceOf(OrderNotFoundException.class);
     }
 
     @Test
     void update_recalculatesTotalPriceAndUpdatesStatus() {
         Order existing = new Order();
         existing.setId(1L);
+        existing.setUserSub(SUB);
         existing.setUnitPrice(new BigDecimal("10.00"));
         existing.setQuantity(2);
         existing.setStatus(OrderStatus.PENDING);
-        when(orderRepository.findById(1L)).thenReturn(Optional.of(existing));
+        when(orderRepository.findByIdAndUserSub(1L, SUB)).thenReturn(Optional.of(existing));
         when(orderRepository.save(any(Order.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
-        UpdateOrderRequest request = new UpdateOrderRequest(5, OrderStatus.CONFIRMED);
-        Order result = orderService.update(1L, request);
+        Order result =
+                orderService.update(SUB, 1L, new UpdateOrderRequest(5, OrderStatus.CONFIRMED));
 
         assertThat(result.getQuantity()).isEqualTo(5);
         assertThat(result.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
@@ -124,39 +133,37 @@ class OrderServiceTest {
     }
 
     @Test
-    void update_notFound_throwsOrderNotFoundException() {
-        when(orderRepository.findById(99L)).thenReturn(Optional.empty());
-        UpdateOrderRequest request = new UpdateOrderRequest(1, OrderStatus.CONFIRMED);
+    void update_ownedBySomeoneElse_throwsAndSavesNothing() {
+        when(orderRepository.findByIdAndUserSub(1L, "another-sub")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> orderService.update(99L, request))
+        assertThatThrownBy(
+                        () ->
+                                orderService.update(
+                                        "another-sub",
+                                        1L,
+                                        new UpdateOrderRequest(5, OrderStatus.CONFIRMED)))
                 .isInstanceOf(OrderNotFoundException.class);
+        verify(orderRepository, never()).save(any(Order.class));
     }
 
     @Test
-    void delete_removesExistingOrder() {
+    void delete_removesTheCallersOwnOrder() {
         Order existing = new Order();
         existing.setId(1L);
-        when(orderRepository.findById(1L)).thenReturn(Optional.of(existing));
+        existing.setUserSub(SUB);
+        when(orderRepository.findByIdAndUserSub(1L, SUB)).thenReturn(Optional.of(existing));
 
-        orderService.delete(1L);
+        orderService.delete(SUB, 1L);
 
         verify(orderRepository).delete(existing);
     }
 
     @Test
-    void delete_notFound_throwsOrderNotFoundException() {
-        when(orderRepository.findById(99L)).thenReturn(Optional.empty());
+    void delete_ownedBySomeoneElse_throwsAndDeletesNothing() {
+        when(orderRepository.findByIdAndUserSub(1L, "another-sub")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> orderService.delete(99L))
+        assertThatThrownBy(() -> orderService.delete("another-sub", 1L))
                 .isInstanceOf(OrderNotFoundException.class);
-    }
-
-    @Test
-    void getAll_returnsAllOrders() {
-        when(orderRepository.findAll()).thenReturn(List.of(new Order(), new Order()));
-
-        List<Order> result = orderService.getAll();
-
-        assertThat(result).hasSize(2);
+        verify(orderRepository, never()).delete(any(Order.class));
     }
 }
