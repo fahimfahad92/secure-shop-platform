@@ -5,19 +5,75 @@
   },
   "auth": {
     "type": "bearer",
-    "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
   },
   "variable": [
-    { "key": "orderServiceBaseUrl", "value": "http://localhost:8080" },
-    { "key": "orderId", "value": "1" },
-    { "key": "keycloakUrl", "value": "http://localhost:8081" },
-    { "key": "realm", "value": "secure-shop" },
-    { "key": "clientId", "value": "order-service-client" },
-    { "key": "clientSecret", "value": "" },
-    { "key": "username", "value": "testuser" },
-    { "key": "password", "value": "test" },
-    { "key": "access_token", "value": "" },
-    { "key": "refresh_token", "value": "" }
+    {
+      "key": "orderServiceBaseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "orderId",
+      "value": "1"
+    },
+    {
+      "key": "keycloakUrl",
+      "value": "http://localhost:8081"
+    },
+    {
+      "key": "realm",
+      "value": "secure-shop"
+    },
+    {
+      "key": "clientId",
+      "value": "order-service-client"
+    },
+    {
+      "key": "clientSecret",
+      "value": ""
+    },
+    {
+      "key": "username",
+      "value": "testuser"
+    },
+    {
+      "key": "password",
+      "value": "test"
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "refresh_token",
+      "value": ""
+    },
+    {
+      "key": "productServiceBaseUrl",
+      "value": "http://localhost:8082"
+    },
+    {
+      "key": "productId",
+      "value": "1"
+    },
+    {
+      "key": "adminUsername",
+      "value": "adminuser"
+    },
+    {
+      "key": "adminPassword",
+      "value": "admin"
+    },
+    {
+      "key": "admin_access_token",
+      "value": ""
+    }
   ],
   "item": [
     {
@@ -53,21 +109,49 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
             "body": {
               "mode": "urlencoded",
               "urlencoded": [
-                { "key": "grant_type", "value": "password" },
-                { "key": "client_id", "value": "{{clientId}}" },
-                { "key": "client_secret", "value": "{{clientSecret}}" },
-                { "key": "username", "value": "{{username}}" },
-                { "key": "password", "value": "{{password}}" }
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{clientId}}"
+                },
+                {
+                  "key": "client_secret",
+                  "value": "{{clientSecret}}"
+                },
+                {
+                  "key": "username",
+                  "value": "{{username}}"
+                },
+                {
+                  "key": "password",
+                  "value": "{{password}}"
+                }
               ]
             },
             "url": {
               "raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
-              "host": ["{{keycloakUrl}}"],
-              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "token"]
+              "host": [
+                "{{keycloakUrl}}"
+              ],
+              "path": [
+                "realms",
+                "{{realm}}",
+                "protocol",
+                "openid-connect",
+                "token"
+              ]
             }
           }
         },
@@ -101,20 +185,121 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/x-www-form-urlencoded" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
             "body": {
               "mode": "urlencoded",
               "urlencoded": [
-                { "key": "grant_type", "value": "refresh_token" },
-                { "key": "client_id", "value": "{{clientId}}" },
-                { "key": "client_secret", "value": "{{clientSecret}}" },
-                { "key": "refresh_token", "value": "{{refresh_token}}" }
+                {
+                  "key": "grant_type",
+                  "value": "refresh_token"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{clientId}}"
+                },
+                {
+                  "key": "client_secret",
+                  "value": "{{clientSecret}}"
+                },
+                {
+                  "key": "refresh_token",
+                  "value": "{{refresh_token}}"
+                }
               ]
             },
             "url": {
               "raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
-              "host": ["{{keycloakUrl}}"],
-              "path": ["realms", "{{realm}}", "protocol", "openid-connect", "token"]
+              "host": [
+                "{{keycloakUrl}}"
+              ],
+              "path": [
+                "realms",
+                "{{realm}}",
+                "protocol",
+                "openid-connect",
+                "token"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Admin Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const response = pm.response.json();",
+                  "",
+                  "pm.test(\"Admin token request successful\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(response.access_token).to.exist;",
+                  "});",
+                  "",
+                  "if (response.access_token) {",
+                  "    pm.collectionVariables.set(\"admin_access_token\", response.access_token);",
+                  "    pm.environment.set(\"admin_access_token\", response.access_token);",
+                  "}",
+                  "",
+                  "pm.test(\"Token carries the product-admin realm role\", function () {",
+                  "    const claims = JSON.parse(atob(response.access_token.split(\".\")[1]));",
+                  "    pm.expect(claims.realm_access.roles).to.include(\"product-admin\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{clientId}}"
+                },
+                {
+                  "key": "client_secret",
+                  "value": "{{clientSecret}}"
+                },
+                {
+                  "key": "username",
+                  "value": "{{adminUsername}}"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token",
+              "host": [
+                "{{keycloakUrl}}"
+              ],
+              "path": [
+                "realms",
+                "{{realm}}",
+                "protocol",
+                "openid-connect",
+                "token"
+              ]
             }
           }
         }
@@ -127,15 +312,24 @@
           "name": "Create Order",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"productId\": 1,\n  \"quantity\": 2,\n  \"unitPrice\": 9.99\n}"
+              "raw": "{\n  \"productId\": 1,\n  \"quantity\": 2\n}"
             },
             "url": {
               "raw": "{{orderServiceBaseUrl}}/orders",
-              "host": ["{{orderServiceBaseUrl}}"],
-              "path": ["orders"]
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
             }
           }
         },
@@ -145,8 +339,12 @@
             "method": "GET",
             "url": {
               "raw": "{{orderServiceBaseUrl}}/orders",
-              "host": ["{{orderServiceBaseUrl}}"],
-              "path": ["orders"]
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
             }
           }
         },
@@ -156,8 +354,13 @@
             "method": "GET",
             "url": {
               "raw": "{{orderServiceBaseUrl}}/orders/{{orderId}}",
-              "host": ["{{orderServiceBaseUrl}}"],
-              "path": ["orders", "{{orderId}}"]
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}"
+              ]
             }
           }
         },
@@ -165,15 +368,25 @@
           "name": "Update Order",
           "request": {
             "method": "PUT",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"quantity\": 5,\n  \"status\": \"CONFIRMED\"\n}"
             },
             "url": {
               "raw": "{{orderServiceBaseUrl}}/orders/{{orderId}}",
-              "host": ["{{orderServiceBaseUrl}}"],
-              "path": ["orders", "{{orderId}}"]
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}"
+              ]
             }
           }
         },
@@ -183,8 +396,13 @@
             "method": "DELETE",
             "url": {
               "raw": "{{orderServiceBaseUrl}}/orders/{{orderId}}",
-              "host": ["{{orderServiceBaseUrl}}"],
-              "path": ["orders", "{{orderId}}"]
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}"
+              ]
             }
           }
         },
@@ -192,15 +410,24 @@
           "name": "Create Order - Validation Error (400)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"productId\": 1,\n  \"quantity\": 0,\n  \"unitPrice\": 9.99\n}"
+              "raw": "{\n  \"productId\": 1,\n  \"quantity\": 0\n}"
             },
             "url": {
               "raw": "{{orderServiceBaseUrl}}/orders",
-              "host": ["{{orderServiceBaseUrl}}"],
-              "path": ["orders"]
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
             }
           }
         },
@@ -210,8 +437,314 @@
             "method": "GET",
             "url": {
               "raw": "{{orderServiceBaseUrl}}/orders/999",
-              "host": ["{{orderServiceBaseUrl}}"],
-              "path": ["orders", "999"]
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "999"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Order - Unknown Product (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/orders",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": 999999,\n  \"quantity\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Order - Insufficient Stock (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/orders",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "orders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{productId}},\n  \"quantity\": 100000\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Product Service",
+      "description": "GET endpoints are public — no token at all. Writes require the product-admin realm role, so run Auth > Get Admin Token first.",
+      "item": [
+        {
+          "name": "Get All Products (public, no token)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/products",
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Get Product By Id (public, no token)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/products/{{productId}}",
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "products",
+                "{{productId}}"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Create Product (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/products",
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mechanical Keyboard\",\n  \"description\": \"87-key, hot-swappable\",\n  \"price\": 99.99,\n  \"stock\": 25\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Product (admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/products/{{productId}}",
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "products",
+                "{{productId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mechanical Keyboard (v2)\",\n  \"description\": \"87-key, hot-swappable, RGB\",\n  \"price\": 119.99,\n  \"stock\": 40\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Product (admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/products/{{productId}}",
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "products",
+                "{{productId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Product - No Token (401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/products",
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mechanical Keyboard\",\n  \"description\": \"87-key, hot-swappable\",\n  \"price\": 99.99,\n  \"stock\": 25\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Create Product - Non-Admin Token (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/products",
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mechanical Keyboard\",\n  \"description\": \"87-key, hot-swappable\",\n  \"price\": 99.99,\n  \"stock\": 25\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Product - Validation Error (400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/products",
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "products"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"price\": -1,\n  \"stock\": -5\n}"
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{admin_access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Product - Not Found (404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{productServiceBaseUrl}}/products/999999",
+              "host": [
+                "{{productServiceBaseUrl}}"
+              ],
+              "path": [
+                "products",
+                "999999"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           }
         }
