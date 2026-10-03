@@ -68,7 +68,7 @@
     },
     {
       "key": "adminPassword",
-      "value": "admin"
+      "value": "test"
     },
     {
       "key": "admin_access_token",

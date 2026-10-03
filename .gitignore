@@ -1,3 +1,4 @@
 docker/postgres-data/
 docker/keycloak-data/
 /.idea/
+docker/.env

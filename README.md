@@ -58,7 +58,7 @@ cd backend/order-service
 ./mvnw spring-boot:run
 ```
 
-Keycloak admin console: `http://localhost:8081` (`admin`/`admin`). Realm/client/scope setup is manual — see the setup notes referenced in this project's planning docs if starting from scratch.
+Keycloak admin console: `http://localhost:8081` (`admin`/`admin`). The realm is imported from a committed file on first start — see "Realm as code" under Phase 4.
 
 ### Get a token and call the API
 
@@ -193,7 +193,7 @@ cd backend/product-service && ./mvnw spring-boot:run # :8082
 cd backend/order-service && ./mvnw spring-boot:run   # :8080
 ```
 
-Keycloak needs the `user-service-admin-client` service account described above; realm setup is still manual via the admin console.
+Keycloak needs the `user-service-admin-client` service account described above. It is part of the imported realm — see "Realm as code" under Phase 4.
 
 ### Try it
 
@@ -240,7 +240,33 @@ cd backend/user-service && ./mvnw verify     # 20 tests
 
 `jwt()` from spring-security-test bypasses the `JwtDecoder`, so it can't test the audience check. Each service's `TokenValidationTest` sends real RS256 tokens instead. `TestJwts` generates a key pair per test JVM and `AbstractIntegrationTest` points `public-key-location` at the public half, so those tokens go through the same Boot-built decoder and validators as production. No key material is committed.
 
-Still to come in Phase 4: deleting the old client and role, committing a realm export that Keycloak imports on startup, then the Gateway itself.
+### Realm as code
+
+The realm lives in [`docker/keycloak/secure-shop-realm.json`](docker/keycloak/secure-shop-realm.json), a Keycloak partial export (clients, client scopes, roles) plus two seeded dev users. `docker compose up` starts Keycloak with `start-dev --import-realm`, which loads it on first start. `docker/keycloak-data/` is no longer the source of truth.
+
+**First-time setup:**
+
+```bash
+cp docker/.env.example docker/.env   # then fill in the three client secrets
+docker compose -f docker/docker-compose.yml up -d
+```
+
+Compose refuses to start until all three secrets are set. Keycloak copies them into the realm's `${...}` placeholders at import time, so the committed file holds no secrets. Use the same values in Postman (`clientSecret`) and in `KEYCLOAK_ADMIN_CLIENT_SECRET` when starting User Service.
+
+| Seeded user | Password | Realm roles | Note |
+|---|---|---|---|
+| `testuser` | `test` | `user` (via `default-roles-secure-shop`) | dev only |
+| `adminuser` | `test` | `user`, `admin` | dev only |
+
+The seeded users keep fixed ids, so their `sub` survives a re-import and their existing orders and profiles still match. Users created through `/users/register` are runtime data and are not in the file.
+
+**Re-importing:** the import is skipped when the realm already exists, so changes to the file only apply to a fresh realm. Stop Keycloak, delete `docker/keycloak-data/`, and start it again. That also deletes every registered user.
+
+**Changing the realm:** make the change in the admin console, do a **Partial export** (groups and roles, and clients), then before committing:
+- put the `${...}` placeholders back in place of the masked `**********` secrets
+- put the seeded `testuser` and `adminuser` entries back into `users`
+
+Still to come in Phase 4: the Gateway itself.
 
 ## CI
 
