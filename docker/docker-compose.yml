@@ -15,12 +15,20 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.5.2
     container_name: secure-shop-keycloak
-    command: start-dev
+    # --import-realm loads keycloak/secure-shop-realm.json, but only if the realm does not exist
+    # yet. With an existing keycloak-data/ it is skipped; wipe keycloak-data/ to re-import.
+    command: start-dev --import-realm
     restart: unless-stopped
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      # Substituted into the ${...} placeholders of the realm file at import time.
+      # Real values live in docker/.env (gitignored); see docker/.env.example.
+      KEYCLOAK_GATEWAY_CLIENT_SECRET: ${KEYCLOAK_GATEWAY_CLIENT_SECRET:?set it in docker/.env}
+      KEYCLOAK_TEST_CLIENT_SECRET: ${KEYCLOAK_TEST_CLIENT_SECRET:?set it in docker/.env}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET:?set it in docker/.env}
     ports:
       - "8081:8080"
     volumes:
       - ./keycloak-data:/opt/keycloak/data
+      - ./keycloak/secure-shop-realm.json:/opt/keycloak/data/import/secure-shop-realm.json:ro

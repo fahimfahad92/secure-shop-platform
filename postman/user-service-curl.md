@@ -28,7 +28,7 @@ a Keycloak user (credentials) and a local profile row keyed by that `sub`.
 TOKEN=$(curl -s -X POST http://localhost:8081/realms/secure-shop/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password" \
-  -d "client_id=order-service-client" \
+  -d "client_id=secure-shop-test-client" \
   -d "client_secret=<client secret>" \
   -d "username=janedoe" \
   -d "password=correct-horse-battery" | jq -r .access_token)

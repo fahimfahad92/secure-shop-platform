@@ -56,7 +56,8 @@ class OrderOwnershipTest extends AbstractIntegrationTest {
                 jwt().jwt(token -> token.subject(sub))
                         .authorities(
                                 new SimpleGrantedAuthority("SCOPE_orders:read"),
-                                new SimpleGrantedAuthority("SCOPE_orders:write")));
+                                new SimpleGrantedAuthority("SCOPE_orders:write"),
+                                new SimpleGrantedAuthority("ROLE_user")));
     }
 
     private long placeOrderAs(String sub) throws Exception {
