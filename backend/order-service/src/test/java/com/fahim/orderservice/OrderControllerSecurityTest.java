@@ -20,6 +20,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+/** Every order endpoint needs both the scope (what the app may do) and the user role (who). */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureMockMvc
 class OrderControllerSecurityTest extends AbstractIntegrationTest {
@@ -29,6 +30,14 @@ class OrderControllerSecurityTest extends AbstractIntegrationTest {
     @MockitoBean private ProductClient productClient;
 
     private static final String ORDER_JSON = "{\"productId\":1,\"quantity\":2}";
+
+    private static final SimpleGrantedAuthority ORDERS_READ =
+            new SimpleGrantedAuthority("SCOPE_orders:read");
+
+    private static final SimpleGrantedAuthority ORDERS_WRITE =
+            new SimpleGrantedAuthority("SCOPE_orders:write");
+
+    private static final SimpleGrantedAuthority USER_ROLE = new SimpleGrantedAuthority("ROLE_user");
 
     @BeforeEach
     void stubProductLookup() {
@@ -48,35 +57,34 @@ class OrderControllerSecurityTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void getOrders_withReadScope_returns200() throws Exception {
-        mockMvc.perform(
-                        get("/orders")
-                                .with(
-                                        jwt().authorities(
-                                                        new SimpleGrantedAuthority(
-                                                                "SCOPE_orders:read"))))
+    void getOrders_withReadScopeAndUserRole_returns200() throws Exception {
+        mockMvc.perform(get("/orders").with(jwt().authorities(ORDERS_READ, USER_ROLE)))
                 .andExpect(status().isOk());
     }
 
     @Test
     void getOrders_withOnlyWriteScope_returns403() throws Exception {
-        mockMvc.perform(
-                        get("/orders")
-                                .with(
-                                        jwt().authorities(
-                                                        new SimpleGrantedAuthority(
-                                                                "SCOPE_orders:write"))))
+        mockMvc.perform(get("/orders").with(jwt().authorities(ORDERS_WRITE, USER_ROLE)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    void createOrder_withWriteScope_returns201() throws Exception {
+    void getOrders_withUserRoleButNoScope_returns403() throws Exception {
+        mockMvc.perform(get("/orders").with(jwt().authorities(USER_ROLE)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void getOrders_withReadScopeButNoUserRole_returns403() throws Exception {
+        mockMvc.perform(get("/orders").with(jwt().authorities(ORDERS_READ)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void createOrder_withWriteScopeAndUserRole_returns201() throws Exception {
         mockMvc.perform(
                         post("/orders")
-                                .with(
-                                        jwt().authorities(
-                                                        new SimpleGrantedAuthority(
-                                                                "SCOPE_orders:write")))
+                                .with(jwt().authorities(ORDERS_WRITE, USER_ROLE))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(ORDER_JSON))
                 .andExpect(status().isCreated());
@@ -86,10 +94,27 @@ class OrderControllerSecurityTest extends AbstractIntegrationTest {
     void createOrder_withOnlyReadScope_returns403() throws Exception {
         mockMvc.perform(
                         post("/orders")
-                                .with(
-                                        jwt().authorities(
-                                                        new SimpleGrantedAuthority(
-                                                                "SCOPE_orders:read")))
+                                .with(jwt().authorities(ORDERS_READ, USER_ROLE))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(ORDER_JSON))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void createOrder_withUserRoleButNoScope_returns403() throws Exception {
+        mockMvc.perform(
+                        post("/orders")
+                                .with(jwt().authorities(USER_ROLE))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(ORDER_JSON))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void createOrder_withWriteScopeButNoUserRole_returns403() throws Exception {
+        mockMvc.perform(
+                        post("/orders")
+                                .with(jwt().authorities(ORDERS_WRITE))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(ORDER_JSON))
                 .andExpect(status().isForbidden());

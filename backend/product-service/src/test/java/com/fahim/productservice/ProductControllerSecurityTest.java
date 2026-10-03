@@ -23,8 +23,7 @@ class ProductControllerSecurityTest extends AbstractIntegrationTest {
     private static final String PRODUCT_JSON =
             "{\"name\":\"Keyboard\",\"description\":\"Mechanical\",\"price\":99.99,\"stock\":10}";
 
-    private static final SimpleGrantedAuthority PRODUCT_ADMIN =
-            new SimpleGrantedAuthority("ROLE_product-admin");
+    private static final SimpleGrantedAuthority ADMIN = new SimpleGrantedAuthority("ROLE_admin");
 
     private static final SimpleGrantedAuthority ORDERS_READ =
             new SimpleGrantedAuthority("SCOPE_orders:read");
@@ -49,17 +48,17 @@ class ProductControllerSecurityTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void createProduct_withProductAdminRole_returns201() throws Exception {
+    void createProduct_withAdminRole_returns201() throws Exception {
         mockMvc.perform(
                         post("/products")
-                                .with(jwt().authorities(PRODUCT_ADMIN))
+                                .with(jwt().authorities(ADMIN))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(PRODUCT_JSON))
                 .andExpect(status().isCreated());
     }
 
     @Test
-    void createProduct_withoutProductAdminRole_returns403() throws Exception {
+    void createProduct_withoutAdminRole_returns403() throws Exception {
         mockMvc.perform(
                         post("/products")
                                 .with(jwt().authorities(ORDERS_READ))
@@ -69,16 +68,16 @@ class ProductControllerSecurityTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void deleteProduct_withoutProductAdminRole_returns403() throws Exception {
+    void deleteProduct_withoutAdminRole_returns403() throws Exception {
         mockMvc.perform(delete("/products/1").with(jwt().authorities(ORDERS_READ)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    void createProduct_withProductAdminRole_invalidPayload_returns400() throws Exception {
+    void createProduct_withAdminRole_invalidPayload_returns400() throws Exception {
         mockMvc.perform(
                         post("/products")
-                                .with(jwt().authorities(PRODUCT_ADMIN))
+                                .with(jwt().authorities(ADMIN))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"name\":\"\",\"price\":-1,\"stock\":-5}"))
                 .andExpect(status().isBadRequest());

@@ -34,7 +34,10 @@ class OrderProductLookupTest extends AbstractIntegrationTest {
 
     private MockHttpServletRequestBuilder createOrder(String json) {
         return post("/orders")
-                .with(jwt().authorities(new SimpleGrantedAuthority("SCOPE_orders:write")))
+                .with(
+                        jwt().authorities(
+                                        new SimpleGrantedAuthority("SCOPE_orders:write"),
+                                        new SimpleGrantedAuthority("ROLE_user")))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json);
     }

@@ -3,7 +3,7 @@
 Assumes Postgres + Keycloak are up (`docker compose -f docker/docker-compose.yml up -d`) and the
 service is running on `localhost:8082` (`./mvnw spring-boot:run` in `backend/product-service`).
 
-Reads are public. Writes need a token carrying the `product-admin` realm role.
+Reads are public. Writes need a token carrying the `admin` realm role (and `product-service` in `aud`, which every token from `secure-shop-test-client` has).
 
 ## Get an admin token
 
@@ -11,7 +11,7 @@ Reads are public. Writes need a token carrying the `product-admin` realm role.
 ADMIN_TOKEN=$(curl -s -X POST http://localhost:8081/realms/secure-shop/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password" \
-  -d "client_id=order-service-client" \
+  -d "client_id=secure-shop-test-client" \
   -d "client_secret=<client secret>" \
   -d "username=adminuser" \
   -d "password=<adminuser password>" | jq -r .access_token)
@@ -73,7 +73,7 @@ curl -i -X POST http://localhost:8082/products \
   -d '{"name":"Keyboard","price":99.99,"stock":25}'
 ```
 
-`$TOKEN` here is a `testuser` token — authenticated fine, no `product-admin` role, so 403 rather
+`$TOKEN` here is a `testuser` token — authenticated fine, holds `user` but not `admin`, so 403 rather
 than 401. The 401-vs-403 split is the whole point of running both of these.
 
 ## Validation Error (400)

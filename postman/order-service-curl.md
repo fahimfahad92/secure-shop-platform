@@ -5,7 +5,9 @@ directly. Assumes Postgres + Keycloak are up (`docker compose -f docker/docker-c
 Product Service is running on `localhost:8082`, and Order Service is running on `localhost:8080`
 (`./mvnw spring-boot:run` in each service folder).
 
-Every `/orders` endpoint needs a bearer token: `orders:read` for `GET`, `orders:write` for the rest.
+Every `/orders` endpoint needs a bearer token with the `user` realm role plus a scope: `orders:read`
+for `GET`, `orders:write` for the rest. The token must also list `order-service` in `aud`. Missing
+scope or role answers `403`; wrong or missing audience answers `401`.
 
 As of Phase 3 orders also belong to the `sub` in the token. `GET /orders` returns only the caller's
 own orders, and another user's order answers `404` rather than `403` — a 403 would confirm that the
@@ -17,7 +19,7 @@ id exists.
 TOKEN=$(curl -s -X POST http://localhost:8081/realms/secure-shop/protocol/openid-connect/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=password" \
-  -d "client_id=order-service-client" \
+  -d "client_id=secure-shop-test-client" \
   -d "client_secret=<client secret>" \
   -d "username=testuser" \
   -d "password=<testuser password>" | jq -r .access_token)

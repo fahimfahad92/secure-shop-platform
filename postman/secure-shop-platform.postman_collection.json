@@ -32,7 +32,7 @@
     },
     {
       "key": "clientId",
-      "value": "order-service-client"
+      "value": "secure-shop-test-client"
     },
     {
       "key": "clientSecret",
@@ -263,9 +263,10 @@
                   "    pm.environment.set(\"admin_access_token\", response.access_token);",
                   "}",
                   "",
-                  "pm.test(\"Token carries the product-admin realm role\", function () {",
+                  "pm.test(\"Token carries the admin realm role and the product-service audience\", function () {",
                   "    const claims = JSON.parse(atob(response.access_token.split(\".\")[1]));",
-                  "    pm.expect(claims.realm_access.roles).to.include(\"product-admin\");",
+                  "    pm.expect(claims.realm_access.roles).to.include(\"admin\");",
+                  "    pm.expect(claims.aud).to.include(\"product-service\");",
                   "});"
                 ]
               }
@@ -607,7 +608,7 @@
     },
     {
       "name": "Product Service",
-      "description": "GET endpoints are public — no token at all. Writes require the product-admin realm role, so run Auth > Get Admin Token first.",
+      "description": "GET endpoints are public — no token at all. Writes require the admin realm role, so run Auth > Get Admin Token first.",
       "item": [
         {
           "name": "Get All Products (public, no token)",

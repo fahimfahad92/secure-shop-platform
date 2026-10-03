@@ -10,9 +10,9 @@ Architecture: an API Gateway (BFF) is the single entry point for clients, fronti
 |---|---|---|
 | 0 | ✅ Done | Order Service: plain CRUD REST API, Postgres, Flyway-owned schema. No auth — the "before" baseline every later phase secures. |
 | 1 | ✅ Done | Order Service becomes a Resource Server: Keycloak added to docker-compose, JWT validated against its JWKS, `orders:read`/`orders:write` scopes required. Tokens obtained manually via the Keycloak admin console for now. |
-| 2 | ✅ Done | Product Service: public product catalog. `GET` endpoints need no auth (the deliberate public case); writes require the `product-admin` realm role. Order Service calls Product Service when placing an order, and prices the order from the catalog instead of trusting the client. |
+| 2 | ✅ Done | Product Service: public product catalog. `GET` endpoints need no auth (the deliberate public case); writes require an admin realm role (the shared `admin` role since Phase 4). Order Service calls Product Service when placing an order, and prices the order from the catalog instead of trusting the client. |
 | 3 | ✅ Done | User Service: profile data keyed by Keycloak's `sub`. `/register` creates both a Keycloak user (via Admin API) and a local profile row, with compensating delete if the local write fails. Order Service scopes every order to the caller's `sub`. |
-| 4 | Not started | API Gateway (BFF): single entry point for all client traffic. Holds the session — sets an `HttpOnly` cookie, translates it to a bearer token on proxied calls, lets public `GET /products/**` through unauthenticated while gating everything else. Browser never sees Keycloak or a raw JWT. |
+| 4 | 🔄 In progress — Keycloak identity model in code; old client/role removal + realm export, then Gateway | Keycloak identity model cleanup (realm roles `user`/`admin`, audience per service, dedicated test and Gateway clients), then the API Gateway (BFF): single entry point for all client traffic. Holds the session — sets an `HttpOnly` cookie, translates it to a bearer token on proxied calls, lets public `GET /products/**` through unauthenticated while gating everything else. Browser never sees Keycloak or a raw JWT. |
 
 Phases 0–4 are the backend-complete v1, driven via curl/Postman. A Next.js frontend and deeper security-hardening phases follow once v1 is done.
 
@@ -65,7 +65,7 @@ Keycloak admin console: `http://localhost:8081` (`admin`/`admin`). Realm/client/
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8081/realms/secure-shop/protocol/openid-connect/token \
   -d "grant_type=password" \
-  -d "client_id=order-service-client" \
+  -d "client_id=secure-shop-test-client" \
   -d "client_secret=<client secret>" \
   -d "username=testuser" \
   -d "password=<password>" | grep -o '"access_token":"[^"]*"' | sed 's/"access_token":"//;s/"$//')
@@ -83,7 +83,7 @@ Or use the Postman collection's **Auth → Get Token** request — it stores the
 Two services now. Product Service (`:8082`) owns the catalog:
 
 - `GET /products` and `GET /products/{id}` — **public**, no token at all. The first genuinely public endpoints in the project.
-- `POST`/`PUT`/`DELETE /products` — require the `product-admin` realm role. No token → 401. Valid token without the role → 403.
+- `POST`/`PUT`/`DELETE /products` — require the `admin` realm role. No token → 401. Valid token without the role → 403.
 
 Authorization here is a **realm role**, not a client scope. Both `testuser` and `adminuser` authenticate through the same client, so a client scope would land on every user of that client and "admin-only" would mean nothing. A scope describes what the client was granted; a role describes who the user is. Keycloak puts realm roles in the token's `realm_access.roles` claim, which Spring Security does not map to authorities on its own — hence `KeycloakRealmRoleConverter`, which adds `ROLE_*` authorities while leaving the `SCOPE_*` ones intact.
 
@@ -121,7 +121,7 @@ cd backend/order-service
 
 Product Service listens on `http://localhost:8082`; Flyway creates `product_schema` and the `products` table on first boot. Order Service reaches it via `product-service.base-url` in `application.properties`.
 
-Keycloak needs a `product-admin` realm role and a user holding it (`adminuser`) — realm setup is still manual via the admin console.
+Keycloak needs an `admin` realm role and a user holding it (`adminuser`). See Phase 4 for the full realm model.
 
 ### Try it
 
@@ -129,14 +129,14 @@ Keycloak needs a `product-admin` realm role and a user holding it (`adminuser`) 
 # Public browse — no token
 curl http://localhost:8082/products
 
-# Admin write — needs a product-admin token
+# Admin write — needs a token for a user holding the admin role
 curl -X POST http://localhost:8082/products \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name":"Mechanical Keyboard","description":"87-key","price":99.99,"stock":25}'
 ```
 
-Full request sets: [`postman/product-service-curl.md`](postman/product-service-curl.md) and [`postman/order-service-curl.md`](postman/order-service-curl.md), or the Postman collection's **Product Service** folder (**Auth → Get Admin Token** first — it asserts the `product-admin` role is present in the token).
+Full request sets: [`postman/product-service-curl.md`](postman/product-service-curl.md) and [`postman/order-service-curl.md`](postman/order-service-curl.md), or the Postman collection's **Product Service** folder (**Auth → Get Admin Token** first — it asserts the `admin` role and the `product-service` audience are present in the token).
 
 ### Tests
 
@@ -208,6 +208,39 @@ cd backend/product-service && ./mvnw test  # 20 tests
 ```
 
 User Service supplies the service account secret through `@TestPropertySource` on `AbstractIntegrationTest`, not a test `application.properties` — a test file of that name shadows the main one by classpath precedence and would take the resource server config down with it.
+
+## Phase 4 — Keycloak identity model (part 1 of Phase 4)
+
+Phases 1–3 built the realm one console click at a time. The result was a single password-grant client named after one service, and an admin role that only made sense for one service. Before the Gateway is built on top of it, the realm follows one model:
+
+- **Clients are callers, not APIs.** `secure-shop-gateway` is the Gateway's login client (Authorization Code + PKCE `S256`). `secure-shop-test-client` is the password-grant client for Postman/curl only — dev realm, never production. Adding a service adds scopes and an audience, never a new user-facing client.
+- **Scopes say what the app may do** (`orders:read`, `orders:write`). **Roles say who the user is**: every user holds the realm role `user` (via `default-roles-secure-shop`, so `/users/register` needs no change), admins also hold `admin`. **`sub` says which rows are theirs.**
+- **Roles are realm roles**, so they come with the user through whichever client they log in with. `adminuser` uses the same clients as everyone else.
+- **Every token names its services in `aud`.** The `secure-shop-audience` client scope adds `order-service`, `product-service` and `user-service` to both user-facing clients.
+
+What each service checks now:
+
+| Service | Rule | Fails with |
+|---|---|---|
+| Order | `GET` needs `SCOPE_orders:read` **and** `ROLE_user`; writes need `SCOPE_orders:write` **and** `ROLE_user` | `403` if either is missing |
+| Product | writes need `ROLE_admin`; `GET` stays public | `403` without `admin` |
+| All three | `aud` must contain the service's own name (`spring.security.oauth2.resourceserver.jwt.audiences`) | `401` — the token is not valid here at all |
+
+Order Service gained the same `KeycloakRealmRoleConverter` Product Service already had, since its rules now depend on a role too.
+
+A bad token is rejected even on public endpoints: a `GET /products` that carries a token minted for another service gets `401`, not the catalog. Anonymous browsing sends no token.
+
+### Tests
+
+```bash
+cd backend/order-service && ./mvnw verify    # 39 tests
+cd backend/product-service && ./mvnw verify  # 24 tests
+cd backend/user-service && ./mvnw verify     # 20 tests
+```
+
+`jwt()` from spring-security-test bypasses the `JwtDecoder`, so it can't test the audience check. Each service's `TokenValidationTest` sends real RS256 tokens instead. `TestJwts` generates a key pair per test JVM and `AbstractIntegrationTest` points `public-key-location` at the public half, so those tokens go through the same Boot-built decoder and validators as production. No key material is committed.
+
+Still to come in Phase 4: deleting the old client and role, committing a realm export that Keycloak imports on startup, then the Gateway itself.
 
 ## CI
 

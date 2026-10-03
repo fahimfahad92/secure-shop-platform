@@ -1,4 +1,4 @@
-package com.fahim.productservice.config;
+package com.fahim.orderservice.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -14,9 +14,9 @@ class KeycloakRealmRoleConverterTest {
 
     @Test
     void mapsRealmRolesToRoleAuthorities() {
-        Jwt jwt = jwt(Map.of("realm_access", Map.of("roles", List.of("admin", "offline_access"))));
+        Jwt jwt = jwt(Map.of("realm_access", Map.of("roles", List.of("user", "offline_access"))));
 
-        assertThat(authorities(jwt)).contains("ROLE_admin", "ROLE_offline_access");
+        assertThat(authorities(jwt)).contains("ROLE_user", "ROLE_offline_access");
     }
 
     @Test
@@ -27,10 +27,10 @@ class KeycloakRealmRoleConverterTest {
                                 "scope",
                                 "orders:read orders:write",
                                 "realm_access",
-                                Map.of("roles", List.of("admin"))));
+                                Map.of("roles", List.of("user"))));
 
         assertThat(authorities(jwt))
-                .contains("SCOPE_orders:read", "SCOPE_orders:write", "ROLE_admin");
+                .contains("SCOPE_orders:read", "SCOPE_orders:write", "ROLE_user");
     }
 
     @Test

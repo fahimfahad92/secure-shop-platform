@@ -12,8 +12,8 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 public class SecurityConfig {
 
-    /** Realm role that gates every catalog write. Reads are public. */
-    private static final String PRODUCT_ADMIN_ROLE = "product-admin";
+    /** Shared realm role that gates every catalog write. Reads are public. */
+    private static final String ADMIN_ROLE = "admin";
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -26,7 +26,7 @@ public class SecurityConfig {
                                         .requestMatchers(HttpMethod.GET, "/products/**")
                                         .permitAll()
                                         .anyRequest()
-                                        .hasRole(PRODUCT_ADMIN_ROLE))
+                                        .hasRole(ADMIN_ROLE))
                 .oauth2ResourceServer(
                         oauth2 ->
                                 oauth2.jwt(

@@ -1,6 +1,8 @@
 package com.fahim.userservice;
 
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 
@@ -16,6 +18,11 @@ import org.testcontainers.containers.PostgreSQLContainer;
  * {@code application.properties}, which would shadow the main one by name and take the resource
  * server config down with it. Tests never reach a real Keycloak — {@code KeycloakAdminClient} is
  * mocked where it matters — but the property has to resolve for the context to start.
+ *
+ * <p>JWTs are verified against a test key from {@link TestJwts} instead of Keycloak, so a test that
+ * sends a real signed token runs the same decoder and validators as production, including the
+ * {@code audiences} check from application.properties. The issuer URI is blanked so Boot builds the
+ * public-key decoder instead of one that would call Keycloak.
  */
 @TestPropertySource(properties = "keycloak.admin.client-secret=test-secret")
 abstract class AbstractIntegrationTest {
@@ -25,5 +32,13 @@ abstract class AbstractIntegrationTest {
 
     static {
         POSTGRES.start();
+    }
+
+    @DynamicPropertySource
+    static void jwtDecoder(DynamicPropertyRegistry registry) {
+        registry.add(
+                "spring.security.oauth2.resourceserver.jwt.public-key-location",
+                TestJwts::publicKeyLocation);
+        registry.add("spring.security.oauth2.resourceserver.jwt.issuer-uri", () -> "");
     }
 }
