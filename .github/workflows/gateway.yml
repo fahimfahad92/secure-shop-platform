@@ -1,0 +1,26 @@
+name: gateway
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - backend/gateway/**
+      - .github/workflows/gateway.yml
+      - .github/workflows/build-service.yml
+  push:
+    branches: [main]
+    paths:
+      - backend/gateway/**
+      - .github/workflows/gateway.yml
+      - .github/workflows/build-service.yml
+  workflow_dispatch:
+
+concurrency:
+  group: gateway-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-service.yml
+    with:
+      service: gateway

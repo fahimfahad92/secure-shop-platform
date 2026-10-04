@@ -15,6 +15,14 @@
   },
   "variable": [
     {
+      "key": "gatewayBaseUrl",
+      "value": "http://localhost:8090"
+    },
+    {
+      "key": "xsrfToken",
+      "value": ""
+    },
+    {
       "key": "orderServiceBaseUrl",
       "value": "http://localhost:8080"
     },
@@ -388,6 +396,212 @@
                 "openid-connect",
                 "token"
               ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gateway (BFF)",
+      "description": "Everything through the Gateway on :8090 with a session cookie, the way the browser will. No bearer token here (auth is off for this folder); Postman's cookie jar carries JSESSIONID and XSRF-TOKEN. Start the Gateway with the dev profile so Dev Login exists, or log in through the browser at {{gatewayBaseUrl}}/oauth2/authorization/keycloak and copy the cookies. Writes send X-XSRF-TOKEN, which Dev Login stores in {{xsrfToken}}.",
+      "auth": {
+        "type": "noauth"
+      },
+      "item": [
+        {
+          "name": "Dev Login (testuser)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Session created\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().username).to.eql(pm.collectionVariables.get(\"username\"));",
+                  "});",
+                  "",
+                  "pm.test(\"No token in the response body\", function () {",
+                  "    const body = pm.response.text();",
+                  "    pm.expect(body).to.not.include(\"access_token\");",
+                  "    pm.expect(body).to.not.include(\"eyJ\");",
+                  "});",
+                  "",
+                  "const xsrf = pm.cookies.get(\"XSRF-TOKEN\");",
+                  "if (xsrf) {",
+                  "    pm.collectionVariables.set(\"xsrfToken\", xsrf);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/auth/dev-login",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["auth", "dev-login"]
+            }
+          }
+        },
+        {
+          "name": "Dev Login (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Admin session created\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().roles).to.include(\"admin\");",
+                  "});",
+                  "",
+                  "const xsrf = pm.cookies.get(\"XSRF-TOKEN\");",
+                  "if (xsrf) {",
+                  "    pm.collectionVariables.set(\"xsrfToken\", xsrf);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/auth/dev-login",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["auth", "dev-login"]
+            }
+          }
+        },
+        {
+          "name": "Who Am I",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/auth/me",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["auth", "me"]
+            }
+          }
+        },
+        {
+          "name": "Browse Products (public, no session needed)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/products",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["products"]
+            }
+          }
+        },
+        {
+          "name": "Place Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{productId}},\n  \"quantity\": 1\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/orders",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "My Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/orders",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Place Order - No CSRF Token (403)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": {{productId}},\n  \"quantity\": 1\n}"
+            },
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/orders",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["orders"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-XSRF-TOKEN",
+                "value": "{{xsrfToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/logout",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["logout"]
+            }
+          }
+        },
+        {
+          "name": "Who Am I - After Logout (401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayBaseUrl}}/auth/me",
+              "host": ["{{gatewayBaseUrl}}"],
+              "path": ["auth", "me"]
             }
           }
         }

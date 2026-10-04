@@ -12,7 +12,7 @@ Architecture: an API Gateway (BFF) is the single entry point for clients, fronti
 | 1 | ✅ Done | Order Service becomes a Resource Server: Keycloak added to docker-compose, JWT validated against its JWKS, `orders:read`/`orders:write` scopes required. Tokens obtained manually via the Keycloak admin console for now. |
 | 2 | ✅ Done | Product Service: public product catalog. `GET` endpoints need no auth (the deliberate public case); writes require an admin realm role (the shared `admin` role since Phase 4). Order Service calls Product Service when placing an order, and prices the order from the catalog instead of trusting the client. |
 | 3 | ✅ Done | User Service: profile data keyed by Keycloak's `sub`. `/register` creates both a Keycloak user (via Admin API) and a local profile row, with compensating delete if the local write fails. Order Service scopes every order to the caller's `sub`. |
-| 4 | 🔄 In progress — Keycloak identity model in code; old client/role removal + realm export, then Gateway | Keycloak identity model cleanup (realm roles `user`/`admin`, audience per service, dedicated test and Gateway clients), then the API Gateway (BFF): single entry point for all client traffic. Holds the session — sets an `HttpOnly` cookie, translates it to a bearer token on proxied calls, lets public `GET /products/**` through unauthenticated while gating everything else. Browser never sees Keycloak or a raw JWT. |
+| 4 | 🔄 Built — in review (branch `gateway-phase-4`) | Keycloak identity model cleanup (realm roles `user`/`admin`, audience per service, realm imported from a committed export), then the API Gateway (BFF): single entry point for all client traffic. Holds the session — sets an `HttpOnly` cookie, translates it to a bearer token on proxied calls, lets public `GET /products/**` through unauthenticated while gating everything else. Browser never sees Keycloak or a raw JWT. |
 
 Phases 0–4 are the backend-complete v1, driven via curl/Postman. A Next.js frontend and deeper security-hardening phases follow once v1 is done.
 
@@ -235,7 +235,7 @@ A bad token is rejected even on public endpoints: a `GET /products` that carries
 ```bash
 cd backend/order-service && ./mvnw verify    # 39 tests
 cd backend/product-service && ./mvnw verify  # 24 tests
-cd backend/user-service && ./mvnw verify     # 20 tests
+cd backend/user-service && ./mvnw verify     # 23 tests
 ```
 
 `jwt()` from spring-security-test bypasses the `JwtDecoder`, so it can't test the audience check. Each service's `TokenValidationTest` sends real RS256 tokens instead. `TestJwts` generates a key pair per test JVM and `AbstractIntegrationTest` points `public-key-location` at the public half, so those tokens go through the same Boot-built decoder and validators as production. No key material is committed.
@@ -266,7 +266,90 @@ The seeded users keep fixed ids, so their `sub` survives a re-import and their e
 - put the `${...}` placeholders back in place of the masked `**********` secrets
 - put the seeded `testuser` and `adminuser` entries back into `users`
 
-Still to come in Phase 4: the Gateway itself.
+## Phase 4 — API Gateway (BFF, part 2 of Phase 4)
+
+`backend/gateway` (`:8090`) is the single entry point for clients. It logs users in against Keycloak, keeps their tokens server-side, and proxies API calls to the services with the user's access token attached. The browser only ever holds two cookies: `JSESSIONID` (`HttpOnly`, `SameSite=Lax`) and `XSRF-TOKEN`.
+
+Stack: Spring Cloud Gateway **Server Web MVC** (Spring Cloud 2025.0, the train for Boot 3.5), same servlet model as the services, plus `spring-boot-starter-oauth2-client`.
+
+```
+Browser ──cookie──► Gateway :8090 ──Bearer──► Order :8080 / Product :8082 / User :8083
+                       │  ▲
+          auth code    │  │ tokens (back channel)
+          + PKCE       ▼  │
+                     Keycloak :8081
+```
+
+### Routes
+
+| Path | Session | Token relayed | CSRF token on writes |
+|---|---|---|---|
+| `GET /products/**` | not needed | no | — |
+| `POST`/`PUT`/`DELETE /products/**` | required | yes | required |
+| `POST /users/register` | not needed | no | exempt (no session yet) |
+| `/users/**` (everything else) | required | yes | required |
+| `/orders/**` | required | yes | required |
+| `GET /auth/me` | required | — | — |
+| anything else | denied | — | — |
+
+The Gateway's only rule is "is there a session". Scope, role, audience and ownership are still checked by each service on the relayed token, so calling a service directly with a bad token fails the same way.
+
+On every proxied call the browser's `Cookie` and `X-XSRF-TOKEN` headers are stripped: they mean nothing downstream, and the session cookie should not leave the Gateway.
+
+An API call without a session gets `401`, not a redirect to Keycloak's login page.
+
+### Login, refresh, logout
+
+- **Login (browser):** open `http://localhost:8090/oauth2/authorization/keycloak` → Keycloak login form → back to the Gateway → redirected to `/auth/me`. Authorization Code with PKCE `S256`. Spring Security only adds PKCE by itself for public clients, so it is switched on explicitly for this confidential client.
+- **Who am I:** `GET /auth/me` returns username, `sub`, name, email and realm roles. It never returns a token.
+- **Refresh:** automatic. When the access token has expired, the Gateway uses the refresh token before relaying. If that fails too, the call answers `401` (log in again).
+- **Logout:** `POST /logout` with the CSRF header. It ends the Gateway session and redirects to Keycloak's end-session endpoint, so the Keycloak SSO session ends too and the next login asks for the password again.
+
+Tokens are stored in the HTTP session (`HttpSessionOAuth2AuthorizedClientRepository`), not Boot's default in-memory map keyed by username, so they disappear with the session.
+
+### CSRF
+
+The session cookie authenticates the browser automatically, so every write through the Gateway needs the `XSRF-TOKEN` cookie's value echoed in an `X-XSRF-TOKEN` header. The services keep CSRF off: they only accept bearer tokens, which a browser never attaches by itself.
+
+### Dev login (testing only)
+
+A browser is needed for the real login form. For Postman and curl there is `POST /auth/dev-login`, which exists **only** when the Gateway runs with the `dev` profile:
+
+```bash
+curl -c jar -b jar -X POST http://localhost:8090/auth/dev-login \
+  -H 'Content-Type: application/json' -d '{"username":"testuser","password":"test"}'
+
+curl -b jar -c jar -X POST http://localhost:8090/orders \
+  -H 'Content-Type: application/json' \
+  -H "X-XSRF-TOKEN: $(grep XSRF-TOKEN jar | awk '{print $7}')" \
+  -d '{"productId":1,"quantity":2}'
+```
+
+It runs a password grant against the dev-only `secure-shop-test-client` (never `secure-shop-gateway`) and builds the same session a browser login would, so relay, refresh, `/auth/me` and logout all behave the same. Logout of a dev session ends the Keycloak session server-side and answers `204`. Without the `dev` profile the endpoint does not exist (`404`), and with it the Gateway logs a `WARN` at startup.
+
+### Run the full stack
+
+```bash
+docker compose -f docker/docker-compose.yml up -d     # Postgres + Keycloak, realm imported
+set -a; . docker/.env; set +a                         # client secrets for the services and the Gateway
+
+cd backend/product-service && ./mvnw spring-boot:run  # :8082
+cd backend/order-service && ./mvnw spring-boot:run    # :8080
+cd backend/user-service && ./mvnw spring-boot:run     # :8083
+cd backend/gateway && ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev   # :8090, drop the profile for no dev login
+```
+
+Keycloak must be up before the Gateway starts: it reads Keycloak's discovery document at startup.
+
+Postman: the **Gateway (BFF)** folder runs dev login, `/auth/me`, a public product browse, placing and listing orders, a missing-CSRF `403`, and logout.
+
+### Tests
+
+```bash
+cd backend/gateway && ./mvnw verify   # 27 tests
+```
+
+The tests run against one local stub HTTP server playing both Keycloak (token, JWKS, end-session) and the three services, and assert on what the Gateway actually forwarded: bearer token present or absent, `Cookie` and CSRF headers stripped, PKCE parameters on the login redirect, no token in any response body. Client registrations come from a test bean rather than `issuer-uri`, because Boot runs OIDC discovery at startup whenever `issuer-uri` is set.
 
 ## CI
 
@@ -277,7 +360,8 @@ GitHub Actions builds each service independently:
 | `.github/workflows/order-service.yml` | PRs to `main` and pushes to `main` touching `backend/order-service/**`, plus **Run workflow** in the Actions tab |
 | `.github/workflows/product-service.yml` | same, for `backend/product-service/**` |
 | `.github/workflows/user-service.yml` | same, for `backend/user-service/**` |
-| `.github/workflows/build-service.yml` | reusable — not triggered directly; the two above call it with a service name |
+| `.github/workflows/gateway.yml` | same, for `backend/gateway/**` |
+| `.github/workflows/build-service.yml` | reusable — not triggered directly; the callers above pass it a service name |
 
 Each run checks formatting (`./mvnw spotless:check`), then builds and tests (`./mvnw verify`), and uploads the surefire reports as an artifact. Integration tests use Testcontainers against the runner's own Docker daemon, so no service containers are declared.
 
