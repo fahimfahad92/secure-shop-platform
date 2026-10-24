@@ -7,7 +7,7 @@ What can go wrong in secure-shop-platform, how likely and how bad it is, and whi
 | System | v1: Gateway (BFF), Order, Product and User services, Keycloak, Postgres |
 | Model reflects code at | `main` @ `3afe73f` (2026-10-10) |
 | Method | Data flow diagram → STRIDE per element → DREAD scoring → risk register |
-| Status | Phases 1–3 drafted: system, STRIDE (42 threats), DREAD + "Fixed in" for all. 12 High, all assigned. Next: Phase 5 ADRs (Phase 4, defense in depth, is stretch) |
+| Status | Phases 1–3 drafted: system, STRIDE (42 threats), DREAD + "Fixed in" for all. 12 High, all assigned. Phase 5: ADR-0001 to 0013 drafted (`Proposed`), under review. Phase 4 (defense in depth) is stretch |
 
 Related: [../architecture.md](../architecture.md) for how the system works, [../adr/](../adr/) for why it works that way.
 

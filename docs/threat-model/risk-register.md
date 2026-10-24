@@ -56,10 +56,10 @@ Twelve High, all with a step. Order → Product (T38), which #05 set out to scor
 | T27 | Keycloak admin console `admin`/`admin` on the network | [keycloak](stride/keycloak.md) | E | 3/3/3/3/3 = **15 High** | | 4 (credentials from `.env`, port bound to localhost) | Open | |
 | T28 | No login or admin events | [keycloak](stride/keycloak.md) | R | 2/3/1/3/1 = 10 Medium | | 4 (realm: events on) | Open | |
 | T29 | Stolen refresh token usable up to 10 h | [keycloak](stride/keycloak.md) | E | 3/1/1/1/1 = 7 Low | | 6 (Phase 6 rotation) | Open | |
-| T30 | Keycloak down | [keycloak](stride/keycloak.md) | D | 2/2/2/3/1 = 10 Medium | | Accepted (ADR in step 1 Phase 5) | Open | Single instance by design for this project |
+| T30 | Keycloak down | [keycloak](stride/keycloak.md) | D | 2/2/2/3/1 = 10 Medium | | Accepted ([ADR-0012](../adr/0012-accept-single-keycloak-instance.md), review 2027-04-24) | Open | Single instance by design for this project. Moves to `Accepted` when the ADR is accepted |
 | T31 | Shared Postgres superuser | [data-stores](stride/data-stores.md) | E/T | 3/1/2/3/2 = 11 Medium | | 2 (finding #6) | Open | |
 | T32 | Postgres `postgres`/`postgres` on the network | [data-stores](stride/data-stores.md) | E | 3/3/3/3/3 = **15 High** | | 2 (credentials + per-service roles, finding #6) → 4 (port not published) | Open | |
-| T33 | PII stored unencrypted | [data-stores](stride/data-stores.md) | I | 2/1/2/3/1 = 9 Medium | | Accepted (ADR in step 1 Phase 5) | Open | Revisit trigger: any real deployment |
+| T33 | PII stored unencrypted | [data-stores](stride/data-stores.md) | I | 2/1/2/3/1 = 9 Medium | | Accepted ([ADR-0013](../adr/0013-accept-unencrypted-pii-at-rest.md), review 2027-04-24) | Open | Revisit trigger: any real deployment. Moves to `Accepted` when the ADR is accepted |
 | T34 | Tokens exposed by a Gateway memory dump | [data-stores](stride/data-stores.md) | I | 3/1/1/3/1 = 9 Medium | | 4 (Actuator lockdown keeps `heapdump` off) | Open | No Actuator on the classpath today |
 | T35 | Host files leak (Keycloak H2, `.env`) | [data-stores](stride/data-stores.md) | I | 3/1/2/3/1 = 10 Medium | | 3 (secret scanning) → 4 (Docker secrets) | Open | `.env`, `keycloak-data/` gitignored |
 | T36 | No change history in the database | [data-stores](stride/data-stores.md) | R | 1/2/2/3/1 = 9 Medium | | 6 (Phase 7 audit logging) | Open | |
@@ -76,4 +76,4 @@ Twelve High, all with a step. Order → Product (T38), which #05 set out to scor
 - **Damage for denial of service** (T5, T12, T18, T20): scored 2 (a service outage, no data lost), never 3.
 - **T38 at 8:** forging Product Service's reply needs a man-in-the-middle position on the internal network. That rarely happens until the network is shared, but when it does, every order is mispriced. #03 still closes it, because its `reserve-stock` write makes the unauthenticated channel a real problem.
 - **Four 15s share one root cause:** default credentials on reachable ports (T25 partly, T27, T32, T42). One change in step 4 (credentials from `.env`, ports bound to localhost or not published) closes three of them.
-- **Accepted, pending ADRs (T30, T33):** move to `Accepted` when their ADRs are written in this step's Phase 5.
+- **Accepted, pending ADRs (T30, T33):** drafted as ADR-0012 and ADR-0013 (`Proposed`); move to `Accepted` when those ADRs pass review and merge.

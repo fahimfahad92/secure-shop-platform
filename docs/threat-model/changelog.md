@@ -2,6 +2,12 @@
 
 One entry per update, newest first. Format: date, step, what changed, threats added or moved. Rules: [README.md](README.md).
 
+## 2026-10-24 — Step 1 (#05): ADRs drafted (Phase 5)
+
+- `docs/adr/` started: index plus ADR-0001 to 0013, all `Proposed`. 0001 to 0011 record v1's decisions; 0012 and 0013 accept T30 and T33.
+- T30 and T33 "Fixed in" now link their ADRs. Status stays `Open` until the ADRs are accepted.
+- No threats added or re-scored.
+
 ## 2026-10-10 — Step 1 (#05): DREAD scoring (Phase 3)
 
 - All 42 threats triaged. 9 `Verified (v1)` and 2 `Mitigated (v1)` (controls that predate the model; T2 and T9 lack a test). 31 scored: **12 High**, 16 Medium, 3 Low.
