@@ -11,7 +11,7 @@ Target: 8/10
 |---|---|---|---|---|---|---|
 | [0001](0001-keycloak-as-the-only-authorization-server.md) | Keycloak as the only Authorization Server | security | high | Proposed | 8 | 1 (#05) |
 | [0002](0002-bff-tokens-stay-in-the-gateway.md) | BFF: tokens stay in the Gateway, the browser holds only a session cookie | security | high | Proposed | 9 | 1 (#05) |
-| [0003](0003-gateway-checks-session-services-enforce-rules.md) | The Gateway checks only "is there a session"; services enforce the rules | security | high | Proposed | | 1 (#05) |
+| [0003](0003-gateway-checks-session-services-enforce-rules.md) | The Gateway checks only "is there a session"; services enforce the rules | security | high | Proposed | 8.5 | 1 (#05) |
 | [0004](0004-owner-from-token-sub-404-for-others.md) | Owner from the token's `sub`, `404` for other users' data | security | normal | Proposed | | 1 (#05) |
 | [0005](0005-price-from-the-catalog-never-from-the-client.md) | Price from the catalog, never from the client | security | normal | Proposed | | 1 (#05) |
 | [0006](0006-realm-as-code-secrets-as-placeholders.md) | Realm as code, secrets as `${...}` placeholders | security | normal | Proposed | | 1 (#05) |

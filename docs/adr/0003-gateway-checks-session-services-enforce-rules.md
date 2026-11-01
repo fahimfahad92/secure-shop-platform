@@ -65,19 +65,19 @@ Header-based identity was rejected because it is forgeable while service ports a
 - **It moves the discipline, it doesn't remove it.** An edge role rule covers only routes someone wrote a matcher for, so a new endpoint needs a second rule in a second deployable. The Gateway's `denyAll` on unknown paths is the coarse edge check worth having, and it exists
 - **Neither authorization bug is visible at the edge.** A permissive wildcard matcher (a new `GET /products/admin/stats` under `GET /products/**`) and a missing ownership filter (a new `GET /orders/all` that forgets `sub`) both arrive with a valid session and a valid role. A coarse edge check forwards them
 
-The guarantee belongs in the service, as mechanisms rather than discipline: fail-closed defaults, exact matchers, and tests that cover every route without anyone adding them. Today Order and Product fail closed (`anyRequest()` is the strictest rule in each); the rest is scheduled below.
+The guarantee belongs in the service, as mechanisms rather than discipline: fail-closed defaults, exact matchers, and tests that cover every route without anyone adding them. Today only Product fails closed (`anyRequest()` needs `admin`). Order's default (`orders:write` + `user`) looks strict but is held by every logged-in user: `orders:read` and `orders:write` are realm default client scopes, and `default-roles-secure-shop` includes `user` ([0011](0011-realm-roles-and-per-service-audience.md)). So Order fails open for new endpoints, like User Service. The rest is scheduled below.
 
 ### Scheduled hardening (step 2, review findings)
 
 Decided here, implemented in step 2 of the build sequence, after #05. Not in Verification until the code exists.
 
-1. **User Service fails closed.** Explicit matchers for `GET`, `PUT`, `DELETE /users/me` and `anyRequest().denyAll()`. A new User Service endpoint returns `403` until it gets a rule
+1. **User and Order Service fail closed.** User: explicit matchers for `GET`, `PUT`, `DELETE /users/me`, then `anyRequest().denyAll()`. Order: explicit matchers for `POST /orders`, `GET /orders`, `GET`, `PUT`, `DELETE /orders/{id}` with today's scope + role rules, then `anyRequest().denyAll()`. A new endpoint in either service returns `403` until it gets a rule
 2. **Exact matchers on permissive rules.** `GET /products/**` becomes `GET /products` and `GET /products/{id}` in Product Service, in the Gateway's `SecurityConfig`, and in the Gateway's `RouteConfig` public route, which never relays a token. Narrowing only the service would leave a future admin `GET` under `/products` unreachable through the Gateway. `GET /orders/**` becomes the exact Order routes
 3. **Route-manifest fitness test** in each service: reads every route from the handler mapping and compares it with a checked-in manifest of route → rule. A route missing from the manifest fails the build; every non-public route must answer `401` without a token. The public allowlist holds exact patterns, never prefixes
 4. **Cross-user ownership test** in Order and User Service: seed data for user A, call every owner-scoped route as user B, assert A's data never appears
 5. **`deleteMyProfile_noToken_returns401`** in `UserControllerSecurityTest`
 
-Tracked as step 2 review findings #18 (items 1, 5), #19 (item 2) and #20 (items 3, 4). Ownership backstop beyond tests: Postgres row-level security on `user_sub`, already the migration path in [0004](0004-owner-from-token-sub-404-for-others.md). It needs `SET LOCAL` of the caller's `sub` per transaction, because connections are pooled.
+Tracked as step 2 review findings #18 (items 1, 5), #19 (item 2) and #20 (items 3, 4) in [`.review/best-practices-findings.md`](../../.review/best-practices-findings.md). Ownership backstop beyond tests: Postgres row-level security on `user_sub`, already the migration path in [0004](0004-owner-from-token-sub-404-for-others.md). It needs `SET LOCAL` of the caller's `sub` per transaction, because connections are pooled.
 
 ## One-minute answer
 
@@ -93,8 +93,8 @@ The Gateway only checks that there is a logged-in session; each service checks t
 
 ### Negative (residual risk)
 
-- **One layer per rule.** A service's `SecurityConfig` is the only place its rules are enforced. If it regresses, nothing at the edge catches it: the Gateway forwards any request that has a session. The guard is each service's security tests, which run in CI and fail the build. Until step 2, they cover existing endpoints only: a new endpoint without a security test is guarded by the service's `anyRequest()` default (write scope + `user` on Order, `admin` on Product, authenticated on User) and code review. Step 2 items 1 and 3 close this
-- **Until step 2, User Service fails open for new endpoints.** `anyRequest().authenticated()` lets any token with the `user-service` audience through. Safe today because every protected endpoint is `/users/me`. Step 2 item 1 replaces it with `denyAll`
+- **One layer per rule.** A service's `SecurityConfig` is the only place its rules are enforced. If it regresses, nothing at the edge catches it: the Gateway forwards any request that has a session. The guard is each service's security tests, which run in CI and fail the build. Until step 2, they cover existing endpoints only: a new endpoint without a security test is guarded by the service's `anyRequest()` default (`admin` on Product; on Order, write scope + `user`, which every logged-in user holds; authenticated on User) and code review. Step 2 items 1 and 3 close this
+- **Until step 2, User and Order Service fail open for new endpoints.** User Service: `anyRequest().authenticated()` lets any token with the `user-service` audience through. Order Service: `anyRequest()` needs `orders:write` + `user`, and every logged-in user's token carries both by default. Safe today because every existing endpoint has its own rule and acts on the caller's `sub`. Step 2 item 1 replaces both defaults with `denyAll`
 - **Wildcard matchers on permissive rules.** Until step 2, a new route under `GET /products/**` is public and a new route under `GET /orders/**` needs only read scope + `user`. A new `GET /orders/all` that forgets `sub` would leak every user's orders. Step 2 items 2–4 close this; RLS ([0004](0004-owner-from-token-sub-404-for-others.md)) is the data-layer backstop if tests prove not enough
 - **Gateway-only controls are bypassable** while service ports are reachable. Today that is only CSRF (meaningless for bearer calls), but any rate limit added at the Gateway in step 6 would be skipped (T40, 13 High, fixed by step 3 publishing only the Gateway port)
 - **Duplicated security code.** `KeycloakRealmRoleConverter` exists in Order and Product Service; each service has its own `SecurityConfig` and `TokenValidationTest`. Shared code vs duplication is a step 2 ADR (finding #13)
@@ -135,3 +135,4 @@ Review date: 2027-10-24.
 | 1 | 2026-10-24 | architecture-kata-reviewer | 7.5/10 | ACCEPT PENDING DEFENSE (below target) |
 | 2 | 2026-11-01 | architecture-kata-reviewer | 8/10 | ACCEPT PENDING DEFENSE |
 | 2 (defense) | 2026-11-01 | architecture-kata-reviewer | 8/10 | Defense: passed 2026-11-01; required changes 1–5 open |
+| 3 | 2026-11-01 | architecture-kata-reviewer | 8.5/10 | ACCEPT (same-session re-review; required changes 1–5 done). Order fail-closed claim corrected after the review, Order hardening scheduled for step 2 (#18) |
