@@ -13,7 +13,7 @@ Target: 8/10
 | [0002](0002-bff-tokens-stay-in-the-gateway.md) | BFF: tokens stay in the Gateway, the browser holds only a session cookie | security | high | Proposed | 9 | 1 (#05) |
 | [0003](0003-gateway-checks-session-services-enforce-rules.md) | The Gateway checks only "is there a session"; services enforce the rules | security | high | Proposed | 8.5 | 1 (#05) |
 | [0004](0004-owner-from-token-sub-404-for-others.md) | Owner from the token's `sub`, `404` for other users' data | security | normal | Proposed | 9.5 | 1 (#05) |
-| [0005](0005-price-from-the-catalog-never-from-the-client.md) | Price from the catalog, never from the client | security | normal | Proposed | | 1 (#05) |
+| [0005](0005-price-from-the-catalog-never-from-the-client.md) | Price from the catalog, never from the client | security | normal | Proposed | 10 | 1 (#05) |
 | [0006](0006-realm-as-code-secrets-as-placeholders.md) | Realm as code, secrets as `${...}` placeholders | security | normal | Proposed | | 1 (#05) |
 | [0007](0007-fail-at-startup-on-a-missing-secret.md) | Fail at startup on a missing secret | security | normal | Proposed | | 1 (#05) |
 | [0008](0008-schema-per-service-on-one-postgres.md) | Schema per service on one Postgres instance | architecture | normal | Proposed | | 1 (#05) |
@@ -22,8 +22,9 @@ Target: 8/10
 | [0011](0011-realm-roles-and-per-service-audience.md) | Realm roles for `user`/`admin`, an audience per service | security | high | Proposed | | 1 (#05) |
 | [0012](0012-accept-single-keycloak-instance.md) | Accepted risk: single Keycloak instance (T30) | security | normal | Proposed | | 1 (#05) |
 | [0013](0013-accept-unencrypted-pii-at-rest.md) | Accepted risk: profile PII unencrypted at rest (T33) | security | normal | Proposed | | 1 (#05) |
+| [0014](0014-accept-no-tls-local-rnd.md) | Accepted risk: no TLS on any flow, local R&D only (T1, T37, T38, T39) | security | high | Proposed | 8.5 | 1 (#05) |
 
-0001 to 0011 are retroactive: they record decisions #01 v1 already made. 0012 and 0013 accept risks from the [threat model](../threat-model/risk-register.md).
+0001 to 0011 are retroactive: they record decisions #01 v1 already made. 0012 to 0014 accept risks from the [threat model](../threat-model/risk-register.md).
 
 ## Format
 

@@ -8,13 +8,21 @@
 | Impact | normal |
 | Deciders | Fahim |
 | Step | 1 (#05 Phase 5, retroactive) |
-| Drivers | T14 (client sets its own price), T38; OWASP API Security Top 10, API6 (unrestricted access to sensitive business flows) |
+| Drivers | T14 (client sets its own price), T38; OWASP API Security Top 10, API3 (broken object property level authorization: mass assignment) |
 | Supersedes | — |
 | Superseded by | — |
 
 ## Context and problem statement
 
-An order has a unit price and a total. Before Phase 2 there was no catalog, so the price had to come from somewhere. Once Product Service exists, Order Service can either take a price from the client or look it up. A client-supplied price lets anyone order a 99.99 keyboard for 0.01.
+Before Phase 2 (PR #2) there was no catalog, so the client sent the price. PR #1's `CreateOrderRequest` was `(productId, quantity, unitPrice)`, and `OrderService.create` stored that `unitPrice` and computed the total from it. The only check was `@DecimalMin("0.0", inclusive = false)`, so `0.01` passed, and `productId` was never checked because there were no products to check it against.
+
+Phase 2 adds Product Service, which owns each product's `price` and `stock`. Order Service can now keep taking the price from the client or look it up.
+
+Keeping the client's price lets anyone order a 99.99 keyboard for 0.01 with one request. Authentication doesn't help: the caller is a real, logged-in customer ordering for themselves. The flaw is a client setting a field it should never own, which is OWASP API3 (broken object property level authorization, the mass-assignment half), a business-logic flaw rather than an access-control one.
+
+Two more forces come with a lookup. An order must keep the price it was placed at, so a later catalog change doesn't rewrite past orders. And placing an order now depends on a second service that can be missing or down.
+
+The lookup moves trust from the public API to the internal call from Order Service to Product Service. This is a local R&D project: everything runs on one machine and every call goes to `localhost`, so TLS is out of scope and won't be set up ([0014](0014-accept-no-tls-local-rnd.md)). Step 5 will secure the internal call with service-to-service authentication instead (a Client Credentials token from Keycloak, see [0009](0009-order-to-product-unauthenticated-in-v1.md)), so Product Service knows the caller is Order Service. Caller authentication doesn't protect the reply, so the price can be trusted only as far as the local network can. That risk is accepted in [0014](0014-accept-no-tls-local-rnd.md).
 
 Where does an order's price come from, and what happens when it can't be found?
 
@@ -59,7 +67,7 @@ The create-order request has no price field: Order Service looks the price up in
 ### Negative (residual risk)
 
 - **Availability coupling.** No Product Service, no orders (`503`)
-- **The price comes over an unauthenticated, unencrypted call** (T38, 8 Medium, [0009](0009-order-to-product-unauthenticated-in-v1.md), fixed in step 5 and step 4)
+- **The price comes over an unauthenticated, unencrypted call** (T38, 8 Medium, [0009](0009-order-to-product-unauthenticated-in-v1.md)). Step 5 adds service-to-service authentication, so the call is authenticated. TLS is out of scope for this local R&D project, so a reply forged on the local network stays an accepted risk ([0014](0014-accept-no-tls-local-rnd.md))
 - **The HTTP call runs inside the database transaction** (`OrderService` is `@Transactional` at class level), so a slow Product Service holds a DB connection (T18, finding #2, step 2)
 - **Stock is checked, not reserved**, so two orders can both pass the check (T16, step 5 `reserve-stock`)
 - **The owner can change quantity on update without a stock check** (T15, step 6)
@@ -80,7 +88,13 @@ Step 5 authenticates the call and adds `reserve-stock`. If the catalog dependenc
 - Discounts, coupons or per-user prices (the price then depends on more than the catalog)
 - Product Service downtime that blocks orders often enough to matter
 
+Review date: 2027-10-24.
+
 ## Review record
 
 | Round | Date | Reviewer | Score | Verdict |
 |---|---|---|---|---|
+| 0 | 2026-10-24 | architecture-kata-reviewer (same session as drafting, baseline) | 9/10 | ACCEPT |
+| 1 | 2026-10-24 | architecture-kata-reviewer | 9.5/10 | ACCEPT |
+| 2 | 2026-11-06 | architecture-kata-reviewer | 9/10 | ACCEPT |
+| 3 | 2026-11-06 | architecture-kata-reviewer | 10/10 | ACCEPT |

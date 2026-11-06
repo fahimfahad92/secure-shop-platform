@@ -45,7 +45,7 @@ Should the Order → Product call carry credentials in v1?
 - Connect timeout 2 s, read timeout 3 s (`ProductClientConfig`); an error or timeout becomes `503`
 - Hard rule from here on: **no non-public endpoint is ever called service-to-service without authentication.** `reserve-stock` in step 5 is a write, so it can't ship before #03's auth does
 
-Relaying the user's token was rejected because the caller of `reserve-stock` will be Order Service, not the user. Client Credentials vs mTLS is #03's decision.
+Relaying the user's token was rejected because the caller of `reserve-stock` will be Order Service, not the user. mTLS is out of scope: this is a local R&D project and TLS won't be set up ([0014](0014-accept-no-tls-local-rnd.md)), so step 5 (#03) secures the call with service-to-service authentication (Client Credentials).
 
 ## One-minute answer
 
@@ -60,7 +60,7 @@ In v1 Order Service calls Product Service without credentials, because the call 
 
 ### Negative (residual risk)
 
-- **Forged replies set the price.** Anyone with a man-in-the-middle position on the internal network can change the `price` in the reply (T38, 8 Medium). Low likelihood while everything is on one machine; every order is affected when it happens. Fixed by step 5 (auth) and step 4 (TLS)
+- **Forged replies set the price.** Anyone with a man-in-the-middle position on the internal network can change the `price` in the reply (T38, 8 Medium). Low likelihood while everything is on one machine; every order is affected when it happens. Step 5's service-to-service auth doesn't fix this: it proves who the caller is, not that the reply is genuine. Only TLS would, and TLS is out of scope for this local R&D project, so this stays an accepted risk ([0014](0014-accept-no-tls-local-rnd.md))
 - **No caller identity at Product Service.** No per-caller limits, no audit of which service read what
 - **Service ports reachable directly** (T40), so "internal" means nothing yet. Step 3 publishes only the Gateway port
 - **Stock isn't reserved** (T16); the fix, `reserve-stock`, needs this decision reversed first

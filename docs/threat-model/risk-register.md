@@ -17,17 +17,17 @@ One row per threat. Details of each threat: the STRIDE file in "Where". Scoring,
 | 7 | T5 | Session flooding via login start | 13 High | 6 |
 | 7 | T19 | Username enumeration on registration | 13 High | 6 |
 | 7 | T40 | Direct service calls bypass the Gateway | 13 High | 3 |
-| 10 | T1 | Session cookie readable on the network | 12 High | 4 |
+| 10 | T1 | Session cookie readable on the network | 12 High | Accepted ([ADR-0014](../adr/0014-accept-no-tls-local-rnd.md)) |
 | 10 | T26 | Password grant live at Keycloak via test client | 12 High | 4 |
-| 10 | T37 | No TLS on any flow | 12 High | 4 |
+| 10 | T37 | No TLS on any flow | 12 High | Accepted ([ADR-0014](../adr/0014-accept-no-tls-local-rnd.md)) |
 
-Twelve High, all with a step. Order → Product (T38), which #05 set out to score, lands at **8 Medium**: it needs a position on the internal network, which v1 doesn't give away (see the notes below).
+Twelve High: ten with a step, two (T1, T37) to be accepted because TLS is out of scope for this local R&D project. Order → Product (T38), which #05 set out to score, lands at **8 Medium**: it needs a position on the internal network, which v1 doesn't give away (see the notes below).
 
 ## Register
 
 | ID | Threat | Where | STRIDE | DREAD initial | DREAD residual | Fixed in | Status | Evidence |
 |---|---|---|---|---|---|---|---|---|
-| T1 | Session cookie read off the network (no TLS) | [gateway](stride/gateway.md) | S | 3/2/2/2/3 = **12 High** | | 4 (TLS, `Secure` cookie) | Open | |
+| T1 | Session cookie read off the network (no TLS) | [gateway](stride/gateway.md) | S | 3/2/2/2/3 = **12 High** | | Accepted ([ADR-0014](../adr/0014-accept-no-tls-local-rnd.md), review 2027-05-06) | Open | `Secure` cookie needs TLS, so it goes too. Moves to `Accepted` when the ADR is accepted |
 | T2 | Session fixation | [gateway](stride/gateway.md) | S | — | | 2 (add test) | Mitigated (v1) | Spring Security session id change on login; `DevLoginController.startSession` |
 | T3 | CSRF on writes; login CSRF on dev login | [gateway](stride/gateway.md) | T | — | | — | Verified (v1) | `GatewayRoutingTest.write_withSessionButNoCsrfToken_returns403_andNothingIsForwarded`, `AuthFlowTest.logout_withoutCsrfToken_returns403`. Dev-login login CSRF: dev profile only |
 | T4 | Tokens leak to browser or downstream | [gateway](stride/gateway.md) | I | — | | 6 (strip client `Authorization` on public routes, carried-over list) | Verified (v1) | `AuthFlowTest.me_withSession_returnsUserAndRoles_butNoToken`, `DevLoginTest.validCredentials_createSession_andReturnUserWithoutTokens`, `GatewayRoutingTest.publicProductRead_isForwardedWithoutAnyBrowserCredentials` |
@@ -63,9 +63,9 @@ Twelve High, all with a step. Order → Product (T38), which #05 set out to scor
 | T34 | Tokens exposed by a Gateway memory dump | [data-stores](stride/data-stores.md) | I | 3/1/1/3/1 = 9 Medium | | 4 (Actuator lockdown keeps `heapdump` off) | Open | No Actuator on the classpath today |
 | T35 | Host files leak (Keycloak H2, `.env`) | [data-stores](stride/data-stores.md) | I | 3/1/2/3/1 = 10 Medium | | 3 (secret scanning) → 4 (Docker secrets) | Open | `.env`, `keycloak-data/` gitignored |
 | T36 | No change history in the database | [data-stores](stride/data-stores.md) | R | 1/2/2/3/1 = 9 Medium | | 6 (Phase 7 audit logging) | Open | |
-| T37 | No TLS on any flow | [data-flows](stride/data-flows.md) | I/T | 3/2/2/3/2 = **12 High** | | 4 (TLS) | Open | |
-| T38 | Order price from an unauthenticated, unencrypted reply | [data-flows](stride/data-flows.md) | S/T | 2/1/1/3/1 = 8 Medium | | 5 (M2M auth) + 4 (TLS) | Open | |
-| T39 | Signing keys fetched over plain HTTP | [data-flows](stride/data-flows.md) | S | 3/1/1/3/1 = 9 Medium | | 4 (TLS to Keycloak) | Open | |
+| T37 | No TLS on any flow | [data-flows](stride/data-flows.md) | I/T | 3/2/2/3/2 = **12 High** | | Accepted ([ADR-0014](../adr/0014-accept-no-tls-local-rnd.md), review 2027-05-06) | Open | Moves to `Accepted` when the ADR is accepted |
+| T38 | Order price from an unauthenticated, unencrypted reply | [data-flows](stride/data-flows.md) | S/T | 2/1/1/3/1 = 8 Medium | | 5 (M2M auth: Product Service knows the caller); reply integrity accepted ([ADR-0014](../adr/0014-accept-no-tls-local-rnd.md), review 2027-05-06) | Open | Service auth doesn't protect the reply; a forged `price` stays possible on the local network |
+| T39 | Signing keys fetched over plain HTTP | [data-flows](stride/data-flows.md) | S | 3/1/1/3/1 = 9 Medium | | Accepted ([ADR-0014](../adr/0014-accept-no-tls-local-rnd.md), review 2027-05-06) | Open | Moves to `Accepted` when the ADR is accepted |
 | T40 | Direct service calls bypass Gateway-only controls | [data-flows](stride/data-flows.md) | E | 2/3/3/3/2 = **13 High** | | 3 (Phase 0: only the Gateway port published) | Open | |
 | T41 | User denies an action (no audit trail) | [external-entities](stride/external-entities.md) | R | 1/2/2/2/1 = 8 Medium | | 6 (Phase 7 audit logging) | Open | |
 | T42 | Anyone acts as the operator with default credentials | [external-entities](stride/external-entities.md) | S | 3/3/3/3/3 = **15 High** | | 4 (same fix as T27, T32) | Open | |
@@ -74,6 +74,6 @@ Twelve High, all with a step. Order → Product (T38), which #05 set out to scor
 
 - **DREAD rewards "easy" over "bad".** T19 (username enumeration, 13) outranks T23 (stolen admin secret, 10) because enumeration is trivial and public while the secret is hard to get. In practice T23 is the more serious threat if its open question resolves badly. The register keeps the DREAD order; this note is the judgment on top.
 - **Damage for denial of service** (T5, T12, T18, T20): scored 2 (a service outage, no data lost), never 3.
-- **T38 at 8:** forging Product Service's reply needs a man-in-the-middle position on the internal network. That rarely happens until the network is shared, but when it does, every order is mispriced. #03 still closes it, because its `reserve-stock` write makes the unauthenticated channel a real problem.
+- **T38 at 8:** forging Product Service's reply needs a man-in-the-middle position on the internal network. That rarely happens until the network is shared, but when it does, every order is mispriced. #03 adds service-to-service authentication, because its `reserve-stock` write makes an unauthenticated channel a real problem. That closes the spoofing half (anyone calling Product Service as Order Service). The tampering half (a forged reply) needs TLS, which is out of scope for this local R&D project, so it stays as an accepted risk ([ADR-0014](../adr/0014-accept-no-tls-local-rnd.md)).
 - **Four 15s share one root cause:** default credentials on reachable ports (T25 partly, T27, T32, T42). One change in step 4 (credentials from `.env`, ports bound to localhost or not published) closes three of them.
-- **Accepted, pending ADRs (T30, T33):** drafted as ADR-0012 and ADR-0013 (`Proposed`); move to `Accepted` when those ADRs pass review and merge.
+- **Accepted, pending ADRs (T30, T33; T1, T37, T39 and half of T38):** drafted as ADR-0012, ADR-0013 and ADR-0014 (`Proposed`); move to `Accepted` when those ADRs pass review and merge.
