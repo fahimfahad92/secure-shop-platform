@@ -61,7 +61,7 @@ For Postman we added a dev-only login endpoint to the Gateway that uses the pass
 
 ### Negative (residual risk)
 
-- **The test client is live in Keycloak in every environment that imports the realm**, whatever the Gateway's profile. Anyone who knows its secret can use the password grant directly at Keycloak (T26, 12 High; step 4 keeps it out of non-dev imports)
+- **The test client is live in Keycloak in every environment that imports the realm**, whatever the Gateway's profile. Anyone who knows its secret can use the password grant directly at Keycloak (T26, 12 High; step 4 keeps it out of non-dev imports). The realm also seeds `adminuser` with the committed password `test` ([ADR-0006](0006-realm-as-code-secrets-as-placeholders.md), T43), so the secret plus the repo give an admin token without any login page
 - **The flag is the only guard.** Starting a shared Gateway with the `dev` profile opens a password endpoint with no rate limit and no CSRF check (login CSRF), on top of no brute-force protection in Keycloak (T7, 11 Medium; T25). Step 4 adds a startup guard
 - **Password grant is deprecated** in the Security BCP and dropped from OAuth 2.1. Fine for a local test tool, not something to copy
 - **No MFA path** through this endpoint

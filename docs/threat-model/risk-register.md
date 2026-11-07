@@ -17,11 +17,12 @@ One row per threat. Details of each threat: the STRIDE file in "Where". Scoring,
 | 7 | T5 | Session flooding via login start | 13 High | 6 |
 | 7 | T19 | Username enumeration on registration | 13 High | 6 |
 | 7 | T40 | Direct service calls bypass the Gateway | 13 High | 3 |
-| 10 | T1 | Session cookie readable on the network | 12 High | Accepted ([ADR-0014](../adr/0014-accept-no-tls-local-rnd.md)) |
-| 10 | T26 | Password grant live at Keycloak via test client | 12 High | 4 |
-| 10 | T37 | No TLS on any flow | 12 High | Accepted ([ADR-0014](../adr/0014-accept-no-tls-local-rnd.md)) |
+| 7 | T43 | Seeded admin with a known password in every realm import | 13 High | 4 |
+| 11 | T1 | Session cookie readable on the network | 12 High | Accepted ([ADR-0014](../adr/0014-accept-no-tls-local-rnd.md)) |
+| 11 | T26 | Password grant live at Keycloak via test client | 12 High | 4 |
+| 11 | T37 | No TLS on any flow | 12 High | Accepted ([ADR-0014](../adr/0014-accept-no-tls-local-rnd.md)) |
 
-Twelve High: ten with a step, two (T1, T37) to be accepted because TLS is out of scope for this local R&D project. Order → Product (T38), which #05 set out to score, lands at **8 Medium**: it needs a position on the internal network, which v1 doesn't give away (see the notes below).
+Thirteen High: eleven with a step, two (T1, T37) to be accepted because TLS is out of scope for this local R&D project. Order → Product (T38), which #05 set out to score, lands at **8 Medium**: it needs a position on the internal network, which v1 doesn't give away (see the notes below).
 
 ## Register
 
@@ -69,6 +70,7 @@ Twelve High: ten with a step, two (T1, T37) to be accepted because TLS is out of
 | T40 | Direct service calls bypass Gateway-only controls | [data-flows](stride/data-flows.md) | E | 2/3/3/3/2 = **13 High** | | 3 (Phase 0: only the Gateway port published) | Open | |
 | T41 | User denies an action (no audit trail) | [external-entities](stride/external-entities.md) | R | 1/2/2/2/1 = 8 Medium | | 6 (Phase 7 audit logging) | Open | |
 | T42 | Anyone acts as the operator with default credentials | [external-entities](stride/external-entities.md) | S | 3/3/3/3/3 = **15 High** | | 4 (same fix as T27, T32) | Open | |
+| T43 | Seeded `adminuser`/`test` (and `testuser`/`test`) in every realm import | [keycloak](stride/keycloak.md) | S | 2/3/3/3/2 = **13 High** | | 4 (realm hardening: seeded users out of non-dev imports, with T26) | Open | Dev-only fixtures by decision ([ADR-0006](../adr/0006-realm-as-code-secrets-as-placeholders.md)); acceptable only while the realm is imported on a developer machine. Found by the ADR review (round 1) |
 
 ## Notes on the scores
 

@@ -2,6 +2,12 @@
 
 One entry per update, newest first. Format: date, step, what changed, threats added or moved. Rules: [README.md](README.md).
 
+## 2026-11-07 — Step 1 (#05): ADR-0006 revision (Phase 5)
+
+- **T43 added** (keycloak, S, 2/3/3/3/2 = **13 High**, fixed in step 4): the realm export seeds `adminuser`/`test` with the `admin` realm role, and `testuser`/`test`, so every import carries a known admin password. Found by the ADR review (round 1, ADR-0006), not by the original modelling.
+- ADR-0006 records both users as dev-only fixtures while the stack is local; step 4 moves them out of non-dev imports together with the test client (T26). ADR-0010 links to it.
+- Thirteen High now. No other threats re-scored.
+
 ## 2026-10-24 — Step 1 (#05): ADRs drafted (Phase 5)
 
 - `docs/adr/` started: index plus ADR-0001 to 0013, all `Proposed`. 0001 to 0011 record v1's decisions; 0012 and 0013 accept T30 and T33.

@@ -9,5 +9,6 @@ Legend, status values and how to update: [../README.md](../README.md). Diagram a
 | T27 | E | Keycloak admin console with `admin`/`admin`, published on all interfaces (TB7): full control of users, roles, clients, secrets and signing keys | — | Default credentials hardcoded in `docker-compose.yml` |
 | T28 | R | No record of logins, failed logins or admin changes | — | `eventsEnabled: false`, `adminEventsEnabled: false` |
 | T29 | E | Stolen refresh token stays usable for the SSO session (idle 30 min, max 10 h) | Tokens live only in the Gateway session; access token 5 min | Refresh rotation off (documented gap) |
+| T43 | S | Seeded users with a committed password: `adminuser`/`test` (`admin` realm role) and `testuser`/`test` are imported with the realm. Anyone who has read the repo logs in as admin through the normal Gateway login and can change or delete the catalog; with T26 also straight at the token endpoint | Dev-only fixtures by decision (ADR-0006); stack runs on one machine | The users exist wherever the realm is imported |
 | T30 | D | Keycloak down: no login, no refresh, no registration | Services keep validating with cached JWKS | Single instance (accepted for this project) |
 
