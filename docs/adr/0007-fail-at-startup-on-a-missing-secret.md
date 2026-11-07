@@ -33,6 +33,7 @@ How should a service behave when a required secret is missing?
 |---|---|---|
 | **Check at startup in code: reject a blank value or one still containing `${`, name the variable in the error** | Fails before serving traffic; clear message; tested | A small check per service; only covers the secrets it lists |
 | Bean validation (`@Validated` + `@NotBlank`) on the properties | Declarative, standard | The literal `${...}` text is not blank, so it passes |
+| Empty default (`${KEYCLOAK_ADMIN_CLIENT_SECRET:}`) plus `@Validated` + `@NotBlank` | Declarative; a missing variable becomes blank, which `@NotBlank` catches. Works for User Service's own `KeycloakAdminProperties` record | Doesn't reach the Gateway: its secrets bind into Boot's `OAuth2ClientProperties`, which we can't annotate and which only checks that `client-id` is set. Every property needs the `:` suffix, and forgetting it brings the literal back silently. Two mechanisms for one rule |
 | Leave it; rely on the runtime `401` | Nothing to build | Late, misleading failure; looks like a wrong password or wrong client |
 | Check outside the app (compose `:?`, a start script) | No app code | Doesn't cover starting from the IDE, which is where it happened |
 
@@ -45,7 +46,7 @@ How should a service behave when a required secret is missing?
 - Both messages name the variable and point to `docker/.env`, and mention that an IDE only sees variables that existed when it started
 - Order and Product Service hold no secrets, so they have no check
 
-`@NotBlank` was rejected because it doesn't catch the placeholder text, which is the actual failure.
+`@NotBlank` was rejected because it doesn't catch the placeholder text, which is the actual failure. The empty-default variant does catch it, and is the runner-up, but only in User Service. The Gateway needs a custom check anyway, because Boot owns its client properties. So the choice is between one rule written the same way in both services, or a hand-written check in the Gateway plus bean validation in User Service. One rule wins on review and on the step 2 shared-code move: the same check, the same message, the same tests, and nothing that depends on remembering a `:` suffix.
 
 ## One-minute answer
 
@@ -79,7 +80,11 @@ When step 4 moves secrets to Docker secrets (files) or a vault, the same rule ap
 - Secrets delivered by something other than environment variables (step 4)
 - A third service that needs a secret
 
+Review date: 2027-04-24.
+
 ## Review record
 
 | Round | Date | Reviewer | Score | Verdict |
 |---|---|---|---|---|
+| 1 | 2026-10-24 | architecture-kata-reviewer | 8.5/10 | ACCEPT |
+| 2 | 2026-11-07 | architecture-kata-reviewer | 9.5/10 | ACCEPT |
