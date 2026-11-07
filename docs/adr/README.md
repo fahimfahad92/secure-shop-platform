@@ -14,7 +14,7 @@ Target: 8/10
 | [0003](0003-gateway-checks-session-services-enforce-rules.md) | The Gateway checks only "is there a session"; services enforce the rules | security | high | Proposed | 8.5 | 1 (#05) |
 | [0004](0004-owner-from-token-sub-404-for-others.md) | Owner from the token's `sub`, `404` for other users' data | security | normal | Proposed | 9.5 | 1 (#05) |
 | [0005](0005-price-from-the-catalog-never-from-the-client.md) | Price from the catalog, never from the client | security | normal | Proposed | 10 | 1 (#05) |
-| [0006](0006-realm-as-code-secrets-as-placeholders.md) | Realm as code, secrets as `${...}` placeholders | security | normal | Proposed | | 1 (#05) |
+| [0006](0006-realm-as-code-secrets-as-placeholders.md) | Realm as code, secrets as `${...}` placeholders | security | normal | Proposed | 9.5 | 1 (#05) |
 | [0007](0007-fail-at-startup-on-a-missing-secret.md) | Fail at startup on a missing secret | security | normal | Proposed | | 1 (#05) |
 | [0008](0008-schema-per-service-on-one-postgres.md) | Schema per service on one Postgres instance | architecture | normal | Proposed | | 1 (#05) |
 | [0009](0009-order-to-product-unauthenticated-in-v1.md) | Order → Product call unauthenticated in v1 | security | high | Proposed | | 1 (#05) |
