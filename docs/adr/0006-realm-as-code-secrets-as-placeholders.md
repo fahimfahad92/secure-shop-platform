@@ -122,4 +122,4 @@ Review date: 2027-04-24.
 |---|---|---|---|---|
 | 1 | 2026-10-24 | architecture-kata-reviewer | 6/10 (G3) | REVISE |
 | 2 | 2026-11-07 | architecture-kata-reviewer (same session as revision, provisional) | 8/10 | ACCEPT |
-| 3 | 2026-11-07 | architecture-kata-reviewer (same session as revision, provisional) | 9.5/10 | ACCEPT |
+| 3 | 2026-11-07 | architecture-kata-reviewer (confirmed in fresh session) | 9/10 | ACCEPT |
