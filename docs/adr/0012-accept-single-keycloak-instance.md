@@ -17,9 +17,10 @@
 Keycloak is the only Authorization Server ([0001](0001-keycloak-as-the-only-authorization-server.md)) and runs as one container in `start-dev` mode with H2 storage. When it is down:
 
 - Nobody can log in or register
-- The Gateway can't refresh tokens, so sessions turn into `401` once their access token expires (`accessTokenLifespan` is 300 s)
-- The Gateway doesn't start, because it reads Keycloak's discovery document at startup
-- Requests with a still-valid access token keep working: services validate with the signing keys they already fetched
+- The Gateway can't refresh tokens, so sessions turn into `401` once their access token expires (`accessTokenLifespan` is 300 s): the failed refresh is a `ClientAuthorizationException`, which `RouteConfig` maps to `401`
+- The Gateway doesn't start, because it reads Keycloak's discovery document at startup (`spring.security.oauth2.client.provider.keycloak.issuer-uri`)
+- Requests with a still-valid access token keep working at services that are already running: they validate with the signing keys they already fetched
+- A service restarted during the outage starts (Spring Boot resolves `resourceserver.jwt.issuer-uri` lazily), but can't validate any token until Keycloak is back, because it has no keys yet
 
 The threat model scores this 10 Medium (T30) and plans to accept it rather than fix it.
 
@@ -36,7 +37,7 @@ Do we make Keycloak highly available, or accept the outage risk?
 | Option | Pros | Cons |
 |---|---|---|
 | **Accept: one instance, `restart: unless-stopped`, review later** | No work; matches a single-machine project | Login outage whenever Keycloak is down |
-| Keycloak cluster: two or more nodes in production mode, shared Postgres, distributed cache | No single point of failure for login | Production mode needs TLS and a hostname; an external DB; two JVMs on a laptop; large effort for no real users |
+| Keycloak cluster: two or more nodes in production mode, shared Postgres, distributed cache | No single point of failure for login | Production mode needs a fixed hostname and HTTPS (HTTP only with an explicit `--http-enabled=true`); an external DB; two JVMs on a laptop; large effort for no real users |
 | Hosted IdP with an SLA | Availability is the vendor's problem | Reverses [0001](0001-keycloak-as-the-only-authorization-server.md) |
 
 ## Decision outcome
@@ -58,25 +59,32 @@ We accept running one Keycloak instance, so a Keycloak outage stops login, regis
 
 ### Negative (residual risk)
 
-- Login, registration and refresh are down while Keycloak is down; logged-in users drop out within 5 minutes
+- Login, registration and refresh are down while Keycloak is down; logged-in users get `401` within 5 minutes. Whether their Gateway session recovers once Keycloak is back (the refresh token is still valid for the SSO session) or they have to log in again is not tested
 - The Gateway can't start without Keycloak, so the two can't be restarted independently
 - `start-dev` with H2 is not supported for production, so HA is not a config change: moving to production mode and Postgres comes first
+- **No backup of Keycloak's data.** Users, password hashes and signing keys live only in H2 under `docker/keycloak-data/` (T35). Losing that folder re-imports the realm with only the seeded users: everyone who registered through `/users/register` is gone, and their profiles and orders in Postgres point to subjects that no longer exist ([development.md](../development.md)). Recovery is "register again", which is fine for test data only
 
 ## Verification
 
 - `docker/docker-compose.yml`: one `keycloak` service, `start-dev`, `restart: unless-stopped`
-- Manual check: stop Keycloak, observe `401` after the access token expires and a Gateway that refuses to start
+- Manual check: stop Keycloak, observe `401` after the access token expires and a Gateway that refuses to start; restart a service during the outage and observe that it starts but rejects tokens
+- No automated test covers the outage behaviour
 
 ## Migration path
 
-1. Production mode (`start`) with Postgres as Keycloak's database and TLS (fits step 4)
+No step plans this: a production deployment is out of scope ([0001](0001-keycloak-as-the-only-authorization-server.md)). Before anything runs beyond one machine:
+
+1. Production mode (`start`) with Postgres as Keycloak's database, a fixed hostname and HTTPS (the TLS work [0014](0014-accept-no-tls-local-rnd.md) lists for that point)
 2. Two nodes behind a load balancer with the distributed cache
 3. Health checks and alerting (step 6 observability)
+
+Cheap, independent of HA: a backup of `docker/keycloak-data/` (or a realm export with users) next to the Postgres one.
 
 ## Revisit trigger
 
 - Any deployment with real users
-- Keycloak moving to production mode for another reason (step 4)
+- Keycloak moving to production mode for any other reason
+- Registered users becoming data someone would miss (losing `keycloak-data` stops being "register again")
 
 Review date: 2027-04-24.
 
@@ -84,3 +92,7 @@ Review date: 2027-04-24.
 
 | Round | Date | Reviewer | Score | Verdict |
 |---|---|---|---|---|
+| 0 | 2026-10-24 | architecture-kata-reviewer (same session as drafting, baseline) | 8.5/10 | ACCEPT |
+| 1 (pre) | 2026-10-24 | architecture-kata-reviewer | 8/10 | ACCEPT |
+| 1 | 2026-11-08 | architecture-kata-reviewer | 8.5/10 | ACCEPT. Durability and service-restart gaps from 10-24 closed. Open: backup called "cheap" but not decided (F1); Gateway explicit endpoints and single-node production mode not weighed (F2); data-loss risk pinned to T35, which is disclosure (F3). Optional: 30-min SSO idle bound (F5), no healthcheck behind `restart: unless-stopped` (F6), hosted IdP "for the local phase" (F7) |
+| 1 (drill) | 2026-11-08 | architecture-kata-reviewer (drill) | 8.5/10 | ACCEPT. Objection answered (not required, Impact normal): one user, never going live, little user data, so uptime and working through an outage are out of scope; a Gateway that fails without Keycloak is a dependency to learn to debug, and hard-coded endpoints would hide it and drift from the realm. Recommended: record the rejection of the backup and the Gateway change in the ADR (options row + one Decision sentence), stating that startup failure is wanted for learning |
