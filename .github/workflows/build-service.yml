@@ -35,6 +35,20 @@ jobs:
           java-version: ${{ inputs.java-version }}
           cache: maven
 
+      # ADR 0008: a service may name only its own schema (order-service ->
+      # order_schema). The gateway owns no schema, so it may name none.
+      - name: Check no cross-schema references
+        env:
+          SERVICE: ${{ inputs.service }}
+        run: |
+          own="${SERVICE%-service}_schema"
+          matches=$(grep -rnowE '(order|product|user)_schema' src | grep -v ":${own}$" || true)
+          if [ -n "$matches" ]; then
+            echo "::error::${SERVICE} references another service's schema (ADR 0008):"
+            echo "$matches"
+            exit 1
+          fi
+
       - name: Check formatting
         run: ./mvnw -B -ntp spotless:check
 
