@@ -99,3 +99,4 @@ Review date: 2027-04-24.
 | 2 | 2026-11-08 | architecture-kata-reviewer | 8.0/10 | ACCEPT |
 | 3 | 2026-11-08 | architecture-kata-reviewer (same session as the edit) | 8.5/10 | ACCEPT |
 | 4 | 2026-11-08 | architecture-kata-reviewer (same session as the edit) | 10/10 | ACCEPT |
+| 5 | 2026-11-08 | architecture-kata-reviewer (fresh session) | 9.5/10 | ACCEPT. Confirms rounds 3–4 fixes; round 4's 10 corrected to 9.5: data minimization (`address`/`phone` read by nothing else) not weighed as an option. Nits: "backup" vs 0012's no-backup decision; Tomcat logs the rethrown constraint violation too |
