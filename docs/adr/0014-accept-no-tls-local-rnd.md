@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted with override: 8.5/10, 2026-11-08, reason: score above the pass mark (7) and the target (8); the round 1 REVISE items (enforcement, CI trigger, step 3 note) are not required for acceptance and are deferred. Approved by Fahim |
 | Date | 2026-11-06 |
 | Category | security |
 | Impact | high |
@@ -97,3 +97,4 @@ Review date: 2027-05-06.
 | Round | Date | Reviewer | Score | Verdict |
 |---|---|---|---|---|
 | 1 | 2026-11-06 | architecture-kata-reviewer | 8.5/10 | REVISE (defense held; ADR missing enforcement, CI trigger, step 3 note) |
+| — | 2026-11-08 | Fahim (approver) | 8.5/10 | ACCEPTED WITH OVERRIDE. Round 1 score stands; the REVISE items (enforcement, CI trigger, step 3 note) are deferred, not required |

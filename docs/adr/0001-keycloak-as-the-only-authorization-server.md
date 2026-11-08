@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-10-24 (recorded). Decided 2026-08-23, #01 Phase 1, PR #1 |
 | Category | security |
 | Impact | high |

@@ -2,6 +2,13 @@
 
 One entry per update, newest first. Format: date, step, what changed, threats added or moved. Rules: [README.md](README.md).
 
+## 2026-11-08 — Step 1 (#05): ADRs accepted (Phase 5 done)
+
+- ADR-0001 to 0014 move to `Accepted` with the step 1 PR (#7). ADR-0014 is accepted with an approver override: 8.5/10, above the pass mark, with its round 1 REVISE items (enforcement, CI trigger, step 3 note) deferred.
+- **Moved to `Accepted`:** T30 (ADR-0012), T33 (ADR-0013), T1, T37, T39 (ADR-0014). T38 stays `Open`: its reply-integrity half is accepted by ADR-0014, its spoofing half is fixed in step 5.
+- ADR pass mark raised from 7 to 8 (the last 5 Accepted ADRs average 8.7).
+- No threats added or re-scored. Thirteen High.
+
 ## 2026-11-08 — Step 1 (#05): ADR-0009 revision (Phase 5)
 
 - **T38 gap widened, not re-scored:** Order Service takes `id`, `price` and `stock` from Product Service's reply unchecked, and `orders` has no `CHECK` on the prices. A forged reply therefore also gets past the stock check, sets the stored `product_id` and can store a zero or negative price. Same attacker and path (man-in-the-middle on the internal network), so still 8 Medium. Recorded as a known gap, fix unscheduled (reply validation and a price `CHECK` migration). Found while revising ADR-0009, not by the original modelling.

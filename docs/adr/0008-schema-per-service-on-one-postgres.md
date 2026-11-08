@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-10-24 (recorded). Decided 2026-08-23, #01 Phase 1, PR #1; extended per service in PR #2 and PR #3 |
 | Category | architecture |
 | Impact | normal |
