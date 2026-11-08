@@ -509,4 +509,6 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 
 **Understand first:** how Spring Data's repository methods run in their own transaction when there is no outer one (`SimpleJpaRepository` is `@Transactional`); why dirty checking needs an explicit `save()` once there's no surrounding transaction; the Saga pattern's "compensate and record" as the general form of this decision.
 
+**Breakdown (2026-11-08):** one task per method, tracked in `Interview-Preparation/tasks/` (`/task-workflow <slug>`): `tx-00-adr-no-transactional` first (the ADR, and class-level `@Transactional` moved onto each method so the parts stay independent), then one task per method: Order `create` (with #2, #22), `getAll`, `getById`, `update`, `delete`; Product `create`, `getAll`, `getById`, `update`, `delete`; Profile `register`, `getBySub`, `update`, `delete` (with #1); `tx-99-archunit-no-transactional` last.
+
 **When done:** ADR in `docs/adr/`; delete this section; #1 and #2 reference the ADR.
