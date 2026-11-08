@@ -5,7 +5,7 @@ Review working file, tracked in git (since 2026-11-01) so it moves between devic
 - Source: `/best-practices-review audit` on `main` @ `3afe73f`, 2026-10-10
 - Scheduled: **step 2** of the build sequence (after #05 threat model, before #04). Includes per-service Postgres users + schema-only privileges (#6). #14 is handled by #04 Phase 3, not here. #05 may add more items assigned to step 2
 - Plan: `Interview-Preparation/project-ideas/README.md` → Build Sequence
-- ADRs expected when fixing **#2, #3, #6, #7, #13** (list + convention: `Interview-Preparation/project-ideas/README.md` → ADR Convention). Write the ADR in `docs/adr/` as part of that finding's fix
+- ADRs expected when fixing **#30 (replaces #2's), #3, #6, #7, #13** (list + convention: `Interview-Preparation/project-ideas/README.md` → ADR Convention). Write the ADR in `docs/adr/` as part of that finding's fix
 - Workflow: pick one finding → understand it → fix → tests pass → delete its section here
 - **Threat model links:** #1 → T21, #2 → T18, #3 → T12, #6 → T31 + T32, #15 → T2, #16 → T9. When one of these is fixed, also update `docs/threat-model/` (risk register status, PR, residual DREAD; Control/Gap in the STRIDE file; changelog)
 - Severity: BLOCKER > MAJOR > MINOR > SUGGESTION
@@ -41,8 +41,10 @@ Review working file, tracked in git (since 2026-11-01) so it moves between devic
 | 26 | SUGGESTION | SB-SEC | `admin-cli` keeps direct access grants in the app realm (ADR-0006) | realm |
 | 27 | SUGGESTION | GEN-OTHER | "Test data only" has no visible notice (ADR-0013) | docs |
 | 28 | MINOR | GEN-OTHER | ADR-0014 accepted with its round 1 REVISE items open | docs |
+| 29 | MINOR | SB-CFG | HikariCP not configured: defaults everywhere, 30 s connection wait | order, product, user |
+| 30 | MAJOR | SB-JPA | Decision: no `@Transactional`; failures recorded as state, not rolled back | order, product, user |
 
-Suggested order: 1 → 2, 3 → 4, 5, 6 → 7, 8 → 9, 10, 12 → 11, 13, 14 (design calls; 14 belongs to project #04).
+Suggested order: 30 (ADR first: it sets the direction for 1, 2, 22) → 4 + 29 (config) → 1 → 2 + 22 (both in `OrderService.create` and the Product call), 3 → 5, 6 → 7, 8 → 9, 10, 12 → 11, 13 → tests 15, 16, 17, 23, 25 → realm 24 + 26 → 18, 19, 20, 21 → docs 27, 28 (design calls; 14 belongs to project #04).
 
 ---
 
@@ -54,7 +56,9 @@ Suggested order: 1 → 2, 3 → 4, 5, 6 → 7, 8 → 9, 10, 12 → 11, 13, 14 (d
 
 **Why it matters:** Keycloak down or returns 5xx → profile row is gone, Keycloak user still exists. User can still log in, but `GET /users/me` returns 404 forever and re-registering fails with 409 (username taken in Keycloak). Existing test `delete_removesProfileThenKeycloakUser` only covers the happy path with mocks, so it can't catch this.
 
-**Fix direction:** `@Transactional` on `delete()` + `profileRepository.flush()` before the Keycloak call (so the DELETE SQL actually runs and can fail first). Keycloak failure → exception → transaction rolls back → profile restored. Add an integration test where `deleteUser` throws and assert the profile still exists.
+**Fix direction (revised 2026-11-08, follows #30: no `@Transactional`, failures recorded as state):** Mark the profile `DELETE_PENDING` (own commit), call Keycloak `deleteUser`, then delete the row. Keycloak fails → set `DELETE_FAILED` with the error and time, return `503`; the row and the account stay, the user can retry (`deleteUser` already treats `404` as done, so a retry is safe). Keycloak succeeds, row delete fails → the row stays `DELETE_PENDING` with no login behind it; log loudly with the `sub`, the same way `register()` logs an orphan. Tests: `deleteUser` throws → row `DELETE_FAILED`, account untouched; row delete fails → `DELETE_PENDING` and the log line; happy path → row gone. Rewrite the Javadoc ("the one we can roll back by simply failing" is false). `GET /users/me` on a `DELETE_PENDING`/`DELETE_FAILED` row: decide whether it reads as `404` or shows the status.
+
+Rejected (original direction): `@Transactional` + `flush()` before the Keycloak call. It rolls the profile back on a Keycloak failure, but holds a DB connection and the row lock for the whole Keycloak call (#2's problem) and leaves no record that a delete failed (#30).
 
 **Understand first:**
 - Why `repository.delete()` alone commits: Spring Data repository methods are `@Transactional` themselves when no outer transaction exists.
@@ -72,7 +76,9 @@ Suggested order: 1 → 2, 3 → 4, 5, 6 → 7, 8 → 9, 10, 12 → 11, 13, 14 (d
 
 **Why it matters:** Product Service timeouts are 2s connect + 3s read, so one slow call holds a connection up to ~5s. Hikari's default pool is 10. Ten concurrent orders against a slow Product Service exhaust the pool, and then *every* DB operation in order-service waits, including `GET /orders`, which doesn't touch Product Service at all. One slow dependency takes down unrelated endpoints.
 
-**Fix direction:** Do the remote call outside any transaction, open the transaction only for the write. Options: remove `@Transactional` from `create()` and rely on `save()`'s own transaction (single write, so that's enough), or split into an orchestrating method (no tx) + a `@Transactional` persist method on another bean (self-invocation would bypass the proxy).
+**Fix direction (revised 2026-11-08, follows #30):** Remove the class-level `@Transactional` from `OrderService` (and the `readOnly` ones). In `create()`, save the order first as `PENDING` (own commit, connection returned), then call Product Service with no connection held, then update it: `CONFIRMED` with the price, or a failure status (`REJECTED` for unknown product or not enough stock, `FAILED` for Product Service unavailable) with the reason and time. The API answers stay `400`/`409`/`503`, but every failed attempt now leaves a row. Do it together with #22 (reply validation is one more failure reason). Needs a migration: new status values (the `CHECK` on `status` lists only `PENDING`, `CONFIRMED`, `CANCELLED`) and a `failure_reason` column. Decide how failed orders show in `GET /orders` (hidden, or listed with their status).
+
+Rejected (original direction): splitting into an orchestrating method plus a `@Transactional` persist method on another bean. It fixes the connection hold but keeps transactions, and a failure still leaves nothing behind (#30).
 
 **Understand first:**
 - When Spring/Hibernate acquires the connection (transaction begin, not first query).
@@ -106,9 +112,12 @@ Suggested order: 1 → 2, 3 → 4, 5, 6 → 7, 8 → 9, 10, 12 → 11, 13, 14 (d
 
 **What:** `spring.jpa.open-in-view` defaults to `true`: the Hibernate session stays open for the whole web request, including JSON serialisation.
 
-**Why it matters:** Lazy associations can be loaded silently from the controller/serialiser, outside any transaction, hiding N+1 queries until production. Boot logs a warning about it at every startup. No lazy associations today, so no current bug — this prevents the first one.
+**Why it matters:**
+- **Connections held per request.** The open session keeps its JDBC connection from the first query until the response is written, including serialisation and any remote call made after the first query. A slow request holds a pool connection for its whole length, the same pool-exhaustion failure as #2, on every endpoint. It isn't a transaction, but it holds the connection like one.
+- Lazy associations can be loaded silently from the controller/serialiser, hiding N+1 queries until production. No lazy associations today, so no current bug there.
+- Boot logs a warning about it at every startup.
 
-**Fix direction:** `spring.jpa.open-in-view=false` in all three; run the tests.
+**Fix direction:** `spring.jpa.open-in-view=false` in all three; run the tests. With #30 (no `@Transactional`), each repository call opens and closes its own session, so once this is off, no code path holds a connection longer than one query. Verify with #29's `leak-detection-threshold`.
 
 **Understand first:** `OpenEntityManagerInViewInterceptor`, and what `LazyInitializationException` tells you once it's off.
 
@@ -448,3 +457,56 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 **Fix direction:** Likely shape: (1) enforcement = step 4 binding published ports to `127.0.0.1` (T40 is step 3); (2) a CI check that fails when a non-dev profile names a non-localhost issuer or base URL over plain HTTP, or similar; (3) step 3 note: container-to-container traffic on the compose network is still plain HTTP, and who can sniff it. Because ADR-0014 is `Accepted`, items that change the decision go in a new ADR that supersedes it; Verification and trigger lines can be added in place.
 
 **When done:** delete this section; ADR-0014 review record → re-review row.
+
+## 29 — MINOR — SB-CFG — HikariCP not configured: defaults everywhere, 30 s connection wait (added 2026-11-08)
+
+**Where:** `application.properties` of order-service, product-service, user-service (no `spring.datasource.hikari.*` property anywhere)
+
+**What:** Every service runs Hikari's defaults: `maximum-pool-size` 10, `minimum-idle` = pool size, `connection-timeout` 30 s, `idle-timeout` 10 min, `max-lifetime` 30 min, `leak-detection-threshold` off, pool name `HikariPool-1` in all three.
+
+**Why it matters:**
+- A request that can't get a connection waits up to 30 s before failing. With 2 s + 3 s timeouts on the Product call, a 30 s pool wait is the slowest part of any outage, and it ties up a web thread the whole time
+- Nothing reports a connection held too long, so #2- and #4-type holds stay invisible
+- Logs and metrics can't tell the three pools apart
+
+**Fix direction:** Per service, in `application.properties`:
+- `spring.datasource.hikari.pool-name=<service>-pool`
+- `maximum-pool-size`: small and explicit (start at 5; 3 services × 5 stays far under Postgres' default `max_connections` of 100, and step 2's per-service roles can add a `CONNECTION LIMIT` to match)
+- `minimum-idle` lower than the max (e.g. 2) for a laptop
+- `connection-timeout=3000` (fail fast, answer `503`)
+- `leak-detection-threshold=2000` in dev (logs a stack trace for any connection held over 2 s)
+- `max-lifetime` below any network or Postgres idle cut-off (keep the 30 min default unless one exists)
+- Map `SQLTransientConnectionException` (pool timeout) to `503` in each service's error handler, not `500`
+
+**Understand first:** why a smaller pool is often faster (HikariCP "About Pool Sizing"); what the leak detection log shows and why it isn't a leak by itself; how `connection-timeout` interacts with the web server's thread pool.
+
+**When done:** note the values in `docs/development.md`; #4 and #30 use the leak detection log as their check.
+
+## 30 — MAJOR — SB-JPA — Decision: no `@Transactional`; failures recorded as state, not rolled back (added 2026-11-08)
+
+**Where:** `OrderService` (class-level `@Transactional`, two `readOnly`), `ProductService` (class-level, two `readOnly`), `ProfileService` (`getBySub` `readOnly`, `update`); every future service class
+
+**What (the decision, by Fahim):** Services don't use `@Transactional`. Each repository call runs in its own short transaction and returns its connection at once. Instead of rolling back, a failed operation leaves a record: the row carries a status (e.g. `PENDING` → `CONFIRMED` / `FAILED`) with the reason and time, and the failure is logged with enough context (ids, the failing dependency) to follow it. Error handling maps each failure to a clear response.
+
+**Why:**
+- `@Transactional` holds a DB connection from the start of the method to the end, including remote calls (#2) and slow code
+- A rollback removes every trace of a failed attempt: nothing shows that an order was tried, what failed, or how often. A status row keeps that history and can be queried
+- It matches the cross-system reality: Keycloak and Product Service calls were never part of a DB transaction anyway (`ProfileService.register` already says so)
+
+**Trade-offs to settle in the ADR:**
+- **Atomicity of multi-row writes is gone.** Today every write is one row, so nothing breaks. A future write that changes two rows in one service (e.g. an order and its lines) would commit them separately; a crash between them leaves half the change. The ADR needs either an explicit exception ("a single local multi-row write may use a transaction with no remote call inside it") or a rule that every partial state has a status that shows it is incomplete
+- **Read consistency:** two reads without a transaction can see different snapshots. Harmless today (single-row reads)
+- **Lost-update protection** still needs optimistic locking (#8); a transaction never provided it
+- **Data model work:** status and reason columns per aggregate (`orders` needs new status values and `failure_reason`; `profiles` needs a status for pending or failed deletes), and a decision on whether failed rows show in list endpoints
+- **Retention:** failure rows grow; decide how long to keep them
+
+**Fix direction:**
+1. ADR first (replaces the "#2 rule: no remote calls inside a DB transaction" ADR planned for step 2): the rule, the exception for local multi-row writes or why there is none, the status model, the logging fields
+2. Remove `@Transactional` from the three services; the readOnly ones go too
+3. Apply the status pattern in #1 (profile delete) and #2 + #22 (order create)
+4. An ArchUnit rule (shared with #21, #23): no class in `..service..` or `..controller..` is annotated with `@Transactional` and no method is, outside the ADR's exception
+5. Verify with #29's `leak-detection-threshold` and #4 off: no connection held over 2 s in any test
+
+**Understand first:** how Spring Data's repository methods run in their own transaction when there is no outer one (`SimpleJpaRepository` is `@Transactional`); why dirty checking needs an explicit `save()` once there's no surrounding transaction; the Saga pattern's "compensate and record" as the general form of this decision.
+
+**When done:** ADR in `docs/adr/`; delete this section; #1 and #2 reference the ADR.
