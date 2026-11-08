@@ -17,7 +17,7 @@ Target: 8/10
 | [0006](0006-realm-as-code-secrets-as-placeholders.md) | Realm as code, secrets as `${...}` placeholders | security | normal | Proposed | 9 | 1 (#05) |
 | [0007](0007-fail-at-startup-on-a-missing-secret.md) | Fail at startup on a missing secret | security | normal | Proposed | 9.5 | 1 (#05) |
 | [0008](0008-schema-per-service-on-one-postgres.md) | Schema per service on one Postgres instance | architecture | normal | Proposed | 9.5 | 1 (#05) |
-| [0009](0009-order-to-product-unauthenticated-in-v1.md) | Order → Product call unauthenticated in v1 | security | high | Proposed | | 1 (#05) |
+| [0009](0009-order-to-product-unauthenticated-in-v1.md) | Order → Product call unauthenticated in v1 | security | high | Proposed | 8 | 1 (#05) |
 | [0010](0010-dev-login-password-grant-behind-a-flag.md) | Dev login: password grant behind a property and the `dev` profile | security | normal | Proposed | | 1 (#05) |
 | [0011](0011-realm-roles-and-per-service-audience.md) | Realm roles for `user`/`admin`, an audience per service | security | high | Proposed | | 1 (#05) |
 | [0012](0012-accept-single-keycloak-instance.md) | Accepted risk: single Keycloak instance (T30) | security | normal | Proposed | | 1 (#05) |

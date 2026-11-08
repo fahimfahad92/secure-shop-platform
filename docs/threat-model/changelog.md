@@ -2,6 +2,11 @@
 
 One entry per update, newest first. Format: date, step, what changed, threats added or moved. Rules: [README.md](README.md).
 
+## 2026-11-08 — Step 1 (#05): ADR-0009 revision (Phase 5)
+
+- **T38 gap widened, not re-scored:** Order Service takes `id`, `price` and `stock` from Product Service's reply unchecked, and `orders` has no `CHECK` on the prices. A forged reply therefore also gets past the stock check, sets the stored `product_id` and can store a zero or negative price. Same attacker and path (man-in-the-middle on the internal network), so still 8 Medium. Recorded as a known gap, fix unscheduled (reply validation and a price `CHECK` migration). Found while revising ADR-0009, not by the original modelling.
+- No threats added. Thirteen High.
+
 ## 2026-11-07 — Step 1 (#05): ADR-0006 revision (Phase 5)
 
 - **T43 added** (keycloak, S, 2/3/3/3/2 = **13 High**, fixed in step 4): the realm export seeds `adminuser`/`test` with the `admin` realm role, and `testuser`/`test`, so every import carries a known admin password. Found by the ADR review (round 1, ADR-0006), not by the original modelling.
