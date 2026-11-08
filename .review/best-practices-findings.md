@@ -34,6 +34,13 @@ Review working file, tracked in git (since 2026-11-01) so it moves between devic
 | 19 | MINOR | SB-SEC | Wildcard matchers on permissive rules (ADR-0003) | product, order, gateway |
 | 20 | MINOR | GEN-TEST-01 | No route-manifest or cross-user ownership test (ADR-0003) | order, product, user |
 | 21 | MINOR | SB-SEC | Unscoped `JpaRepository` methods on owner-scoped repositories (ADR-0004) | order, user |
+| 22 | MINOR | SB-SEC | Order Service trusts Product Service's reply unchecked (ADR-0009, T38) | order-service |
+| 23 | MINOR | GEN-TEST-01 | Dev-login guard has no ArchUnit rule and no startup-failure test (ADR-0010) | gateway |
+| 24 | MINOR | GEN-TEST-01 | Realm facts the ADRs rely on are checked by inspection only (ADR-0011, ADR-0006) | realm |
+| 25 | MINOR | GEN-TEST-01 | No context-level startup test for a missing secret (ADR-0007) | gateway, user |
+| 26 | SUGGESTION | SB-SEC | `admin-cli` keeps direct access grants in the app realm (ADR-0006) | realm |
+| 27 | SUGGESTION | GEN-OTHER | "Test data only" has no visible notice (ADR-0013) | docs |
+| 28 | MINOR | GEN-OTHER | ADR-0014 accepted with its round 1 REVISE items open | docs |
 
 Suggested order: 1 → 2, 3 → 4, 5, 6 → 7, 8 → 9, 10, 12 → 11, 13, 14 (design calls; 14 belongs to project #04).
 
@@ -354,3 +361,90 @@ Suggested order: 1 → 2, 3 → 4, 5, 6 → 7, 8 → 9, 10, 12 → 11, 13, 14 (d
 3. **Not chosen:** custom base repository that injects the owner (hidden request-scoped coupling in the data layer); Hibernate `@Filter` (must be enabled per session, no native SQL); Postgres RLS (needs per-service roles, #6, first; stays ADR-0004's migration path).
 
 **When done:** ADR-0004 → move items 1–2 of "Scheduled hardening" into Decision outcome / Verification with the test name; reword the "Unscoped repository methods are callable today" residual risk and the Scope paragraph; drop the "until step 2" clause from the one-minute answer.
+
+## 22 — MINOR — SB-SEC — Order Service trusts Product Service's reply unchecked (from ADR-0009 revision, T38)
+
+**Where:** `backend/order-service/.../service/OrderService.java` (`create`), a new Flyway migration in `backend/order-service/src/main/resources/db/migration/`
+
+**What:** `create` takes `id`, `price` and `stock` from `ProductClient.fetchProduct` as-is. The stored `product_id` is the reply's `id`, not the requested one. Nothing checks that `price` is present and positive or that `stock` is present and not negative; a missing field is a `500`. `orders` has no `CHECK` on `unit_price` or `total_price`.
+
+**Why it matters:** A forged or broken reply sets what the user pays, gets past the stock check and can store a zero or negative price. Validation doesn't make a forged plausible price detectable (that needs TLS, accepted in ADR-0014), but it bounds the damage and turns a bad upstream reply into a clean `503`.
+
+**Fix direction:** In `create`, reject the reply with `ProductServiceUnavailableException` (→ `503`) when `id` differs from the requested product, `price` is null or not positive, or `stock` is null or negative. Migration: `ALTER TABLE orders ADD CONSTRAINT ... CHECK (unit_price > 0 AND total_price > 0)`. Tests in `OrderProductLookupTest`: mismatched `id`, zero price, negative price, missing field, each `503` with nothing saved.
+
+**When done:** ADR-0009 Verification → add the test names; risk register T38 → drop "Known gap, unscheduled"; `stride/data-flows.md` T38 → move reply validation from Gap to Control today; changelog entry.
+
+## 23 — MINOR — GEN-TEST-01 — Dev-login guard has no ArchUnit rule and no startup-failure test (from ADR-0010 review)
+
+**Where:** `backend/gateway/src/test/java/com/fahim/gateway/devlogin/`, `backend/gateway/pom.xml`
+
+**What:** Dev login is safe because every bean in `devlogin` carries `@ConditionalOnDevLogin`, and because `KeycloakPasswordGrant` refuses to start without the `keycloak-test` registration. Neither is tested: a new unguarded bean would compile and pass, and the startup failure is code only (ADR-0010 Verification says so).
+
+**Why it matters:** A regression in the guard puts a password endpoint into every Gateway start, not only `dev`.
+
+**Fix direction:**
+- ArchUnit (`archunit-junit5`, test scope; shared with #21), test class in the `devlogin` package because `ConditionalOnDevLogin` is package-private: every `@Component`/`@RestController` in `..devlogin..` is annotated with `ConditionalOnDevLogin`; no class outside `..devlogin..` depends on `KeycloakPasswordGrant`. `SecurityConfig`'s `ObjectProvider<DevLoginLogoutHandler>` is the one allowed outside dependency
+- `ApplicationContextRunner` test: `secure-shop.dev-login.enabled=true` without the `keycloak-test` registration fails with the "Run with the dev profile" message
+- Optional: move `application-dev.properties` out of `src/main/resources` (load it with `spring.config.additional-location` locally), so the deployed jar can't activate dev login by profile name
+
+This is regression protection, not the T7 fix: the step 4 startup guard (refuse `dev-login.enabled=true` outside a local environment) stays the fix.
+
+**When done:** ADR-0010 Verification → replace "No test covers the startup failure" with the test names.
+
+## 24 — MINOR — GEN-TEST-01 — Realm facts the ADRs rely on are checked by inspection only (from ADR-0011 rounds 1–2 and ADR-0006 round 3 reviews)
+
+**Where:** `docker/keycloak/secure-shop-realm.json`; a new unit test (any service's test sources, or a small test module)
+
+**What:** ADR-0011 and ADR-0006 rest on realm settings that only a human checks: `secure-shop-audience` is a default scope on `secure-shop-gateway` and `secure-shop-test-client` only, on no other client (`admin-cli` included), and not in `defaultDefaultClientScopes`; `default-roles-secure-shop` includes `user`; only `adminuser` has `admin`; `accessTokenLifespan` is 300; `secure-shop-gateway` has direct access grants off and `secure-shop-test-client` has standard flow off.
+
+**Why it matters:** One realm edit, such as making the audience scope a realm default, silently gives every client, `admin-cli` included, tokens every service accepts. Nothing fails.
+
+**Fix direction:** A JUnit test that parses `secure-shop-realm.json` with Jackson and asserts each fact above, one assertion per ADR claim, with the ADR number in the message. Runs in `mvn verify`, so CI fails on a breaking realm edit.
+
+**When done:** ADR-0011 and ADR-0006 Verification → replace "by inspection, no test" with the test name.
+
+## 25 — MINOR — GEN-TEST-01 — No context-level startup test for a missing secret (from ADR-0007 round 2 review)
+
+**Where:** Gateway and User Service test sources
+
+**What:** ADR-0007's fail-fast checks are tested at the properties-class level (`KeycloakAdminPropertiesTest` and the Gateway equivalent), not by starting a context without the secret.
+
+**Why it matters:** A wiring change (the properties class no longer bound or validated at startup) would leave the unit test green while the app starts without its secret and fails at the first login.
+
+**Fix direction:** `ApplicationContextRunner` (or `@SpringBootTest` expecting a startup failure) without `KEYCLOAK_GATEWAY_CLIENT_SECRET` / the admin-client secret: the context fails with the hint ADR-0007 promises. One per deployable.
+
+**When done:** ADR-0007 Verification → add the test names; reword "the same check, the same message, the same tests" to "same condition, same hint, parallel tests" (round 2 note).
+
+## 26 — SUGGESTION — SB-SEC — `admin-cli` keeps direct access grants in the app realm (from ADR-0006 round 3 review)
+
+**Where:** `docker/keycloak/secure-shop-realm.json`, client `admin-cli`
+
+**What:** `admin-cli` is public with `directAccessGrantsEnabled: true`, so anyone with a user's password can get a token for that user straight from Keycloak, no secret needed. Nothing in the project uses it. Its tokens are rejected by every service today only because it lacks `secure-shop-audience` (#24 makes that checked).
+
+**Why it matters:** It's a second password-grant path next to `secure-shop-test-client` (T26), and the reason it's harmless is incidental.
+
+**Fix direction:** Set `directAccessGrantsEnabled: false` on `admin-cli` in the realm export, with step 4's realm hardening (T25, T26). Confirm nothing in `docs/` or Postman uses it first.
+
+**When done:** risk register T26 note; ADR-0006 Verification line.
+
+## 27 — SUGGESTION — GEN-OTHER — "Test data only" has no visible notice (from ADR-0013 round 1 review, F6)
+
+**Where:** `README.md`, `docs/development.md`
+
+**What:** ADR-0012, 0013 and 0014 all accept risks because the stack holds only test data on one laptop. Their revisit triggers ("any real personal data", "any deployment") are events nothing detects; someone who clones the repo doesn't see the condition.
+
+**Fix direction:** One notice near the top of `README.md` and in `docs/development.md`: local R&D only, test data only, no TLS, unencrypted data folders, links to ADR-0012/0013/0014. Point to step 4, which binds ports to localhost.
+
+**When done:** ADR-0013 → mention the notice under Verification.
+
+## 28 — MINOR — GEN-OTHER — ADR-0014 accepted with its round 1 REVISE items open (approver override, 2026-11-08)
+
+**Where:** `docs/adr/0014-accept-no-tls-local-rnd.md`
+
+**What:** Round 1 (2026-11-06, 8.5/10) said REVISE: the ADR is missing (1) how "local only" is enforced, (2) a CI trigger that would catch the stack leaving one machine, and (3) a note on what step 3's containers change. Accepted with an override. The 2026-11-06 report was not saved in `.review/`, so re-derive the details from the review record or a fresh review when fixing.
+
+**Why it matters:** The acceptance of T1, T37, T38 (reply integrity) and T39 rests on "local only", which nothing enforces or detects today.
+
+**Fix direction:** Likely shape: (1) enforcement = step 4 binding published ports to `127.0.0.1` (T40 is step 3); (2) a CI check that fails when a non-dev profile names a non-localhost issuer or base URL over plain HTTP, or similar; (3) step 3 note: container-to-container traffic on the compose network is still plain HTTP, and who can sniff it. Because ADR-0014 is `Accepted`, items that change the decision go in a new ADR that supersedes it; Verification and trigger lines can be added in place.
+
+**When done:** delete this section; ADR-0014 review record → re-review row.
