@@ -37,14 +37,17 @@ Do we make Keycloak highly available, or accept the outage risk?
 | Option | Pros | Cons |
 |---|---|---|
 | **Accept: one instance, `restart: unless-stopped`, review later** | No work; matches a single-machine project | Login outage whenever Keycloak is down |
+| Accept, plus cheap mitigations: a backup of `docker/keycloak-data/`, explicit Gateway endpoints (`authorization-uri`, `token-uri`, `jwk-set-uri`, `user-info-uri`) instead of `issuer-uri` discovery, or single-node production mode on the Postgres that already runs | Each is small: a copied folder, four properties, a database and a hostname. Durability without HA; a Gateway that starts while Keycloak is down | Protects data and uptime nobody needs here: one user, test data, never going live. The explicit endpoints duplicate the realm's discovery document and drift from it, and they hide the Gateway–Keycloak dependency that this project wants to see and debug |
 | Keycloak cluster: two or more nodes in production mode, shared Postgres, distributed cache | No single point of failure for login | Production mode needs a fixed hostname and HTTPS (HTTP only with an explicit `--http-enabled=true`); an external DB; two JVMs on a laptop; large effort for no real users |
-| Hosted IdP with an SLA | Availability is the vendor's problem | Reverses [0001](0001-keycloak-as-the-only-authorization-server.md) |
+| Hosted IdP with an SLA | Availability is the vendor's problem | For the local phase, reverses [0001](0001-keycloak-as-the-only-authorization-server.md). Not ruled out for production: 0001 leaves the production IdP (Keycloak on ECS or a hosted IdP) to a new ADR at first deployment |
 
 ## Decision outcome
 
 **Chosen: accept the risk.** Status of T30 becomes `Accepted` when this ADR is accepted.
 
-Residual risk: unchanged, 10 Medium (D2/R2/E2/A3/D1). Current partial controls: compose restarts the container (`restart: unless-stopped`), and already-issued access tokens keep working for up to 5 minutes.
+The cheap mitigations are rejected too, on purpose: no backup of `keycloak-data`, and the Gateway keeps `issuer-uri` discovery. With one user, test data and no plan to go live, uptime and durability are out of scope, and a Gateway that fails to start without Keycloak is a dependency worth learning to debug, not one to hide.
+
+Residual risk: unchanged, 10 Medium (D2/R2/E2/A3/D1). T30 covers loss of Keycloak's data as well as downtime: both leave users unable to log in, and this ADR accepts both. Current partial controls: compose restarts the container (`restart: unless-stopped`, which only covers a process that exits: there is no `healthcheck`, so a hung but running Keycloak is not restarted), and already-issued access tokens keep working for up to 5 minutes.
 
 ## One-minute answer
 
@@ -59,10 +62,10 @@ We accept running one Keycloak instance, so a Keycloak outage stops login, regis
 
 ### Negative (residual risk)
 
-- Login, registration and refresh are down while Keycloak is down; logged-in users get `401` within 5 minutes. Whether their Gateway session recovers once Keycloak is back (the refresh token is still valid for the SSO session) or they have to log in again is not tested
+- Login, registration and refresh are down while Keycloak is down; logged-in users get `401` within 5 minutes. After an outage longer than 30 minutes (`ssoSessionIdleTimeout: 1800`) the SSO session is gone and everyone logs in again. Whether a session recovers after a shorter outage, once the refresh succeeds again, is not tested
 - The Gateway can't start without Keycloak, so the two can't be restarted independently
 - `start-dev` with H2 is not supported for production, so HA is not a config change: moving to production mode and Postgres comes first
-- **No backup of Keycloak's data.** Users, password hashes and signing keys live only in H2 under `docker/keycloak-data/` (T35). Losing that folder re-imports the realm with only the seeded users: everyone who registered through `/users/register` is gone, and their profiles and orders in Postgres point to subjects that no longer exist ([development.md](../development.md)). Recovery is "register again", which is fine for test data only
+- **No backup of Keycloak's data.** Users, password hashes and signing keys live only in H2 under `docker/keycloak-data/`. Accepted under T30, not a separate risk (T35 is the same folder leaking, not being lost). Losing that folder re-imports the realm with only the seeded users: everyone who registered through `/users/register` is gone, and their profiles and orders in Postgres point to subjects that no longer exist ([development.md](../development.md)). Recovery is "register again", which is fine for test data only
 
 ## Verification
 
@@ -78,7 +81,7 @@ No step plans this: a production deployment is out of scope ([0001](0001-keycloa
 2. Two nodes behind a load balancer with the distributed cache
 3. Health checks and alerting (step 6 observability)
 
-Cheap, independent of HA: a backup of `docker/keycloak-data/` (or a realm export with users) next to the Postgres one.
+A backup of `docker/keycloak-data/` (or a realm export with users) is rejected for now (Decision outcome) and comes back with the "registered users becoming data someone would miss" trigger.
 
 ## Revisit trigger
 
