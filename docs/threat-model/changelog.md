@@ -2,6 +2,11 @@
 
 One entry per update, newest first. Format: date, step, what changed, threats added or moved. Rules: [README.md](README.md).
 
+## 2026-11-14 — Step 2: findings #4 + #29 (OSIV off, Hikari config)
+
+- **T18, Control today extended, still `Open`:** `open-in-view=false` and an explicit pool (5 connections, 3 s `connection-timeout` → `503`, 2 s leak detection) in order-, product- and user-service, commit `97b7dca` on `review-findings`. A drained pool now fails waiting requests in 3 s with a `503` instead of stalling them for 30 s. The cause stays: the Product call still runs inside the transaction (#2, fixed with #30 in `tx-order-create`). The threat text now says 5 concurrent orders, matching the smaller pool. Not re-scored.
+- No threats added. Thirteen High.
+
 ## 2026-11-08 — Step 1 (#05): ADRs accepted (Phase 5 done)
 
 - ADR-0001 to 0014 move to `Accepted` with the step 1 PR (#7). ADR-0014 is accepted with an approver override: 8.5/10, above the pass mark, with its round 1 REVISE items (enforcement, CI trigger, step 3 note) deferred.

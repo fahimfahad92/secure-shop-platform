@@ -99,6 +99,23 @@ The folders that call services directly skip the Gateway and send the bearer tok
 
 Open `http://localhost:8090/oauth2/authorization/keycloak`, log in as `testuser` / `test`, and you land on `/auth/me`. Log out with `POST /logout` (needs the CSRF header, so use Postman or curl, or the frontend later).
 
+## Database connections
+
+Same settings in order, product and user service (`application.properties`), from findings #4 and #29:
+
+| Setting | Value | Why |
+|---|---|---|
+| `spring.jpa.open-in-view` | `false` | A request holds a connection only while a repository call (or a transaction) runs, not until the response is written. No entity has lazy associations, so nothing relies on it |
+| `spring.datasource.hikari.pool-name` | `<service>-pool` | Tells the three pools apart in logs and metrics (all were `HikariPool-1`) |
+| `spring.datasource.hikari.maximum-pool-size` | `5` | Three services × 5 = 15 connections, far under Postgres' default `max_connections` of 100. Tune it from a load test, not by guess |
+| `spring.datasource.hikari.minimum-idle` | `2` | Keeps the laptop footprint small; the pool grows to 5 on demand |
+| `spring.datasource.hikari.connection-timeout` | `3000` ms | Fail fast: a request that can't get a connection in 3 s gets a `503` with `Retry-After: 1`, instead of tying up a web thread for Hikari's default 30 s |
+| `spring.datasource.hikari.leak-detection-threshold` | `2000` ms | Logs a WARN `Connection leak detection triggered` with the stack trace of where any connection held over 2 s was borrowed. On everywhere, tests included |
+
+- **A leak-detection WARN** doesn't always mean a leak. It means a connection was held over 2 s: a slow query, or slow work inside a transaction. The stack trace shows where the connection was taken. Treat it as a bug to look at, not as noise to silence by raising the threshold.
+- **A pool timeout** answers `503` `"Database busy, try again"` and logs `No database connection free within the pool timeout: ...` at WARN. The log message names the real cause. Today a stopped Postgres also shows up this way, as `... Connection refused` (finding #31).
+- **Other failures to open a transaction** answer `500` `"Internal error"` and log at ERROR with the stack trace.
+
 ## Tests
 
 ```bash
