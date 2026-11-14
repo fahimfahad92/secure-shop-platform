@@ -1,12 +1,12 @@
 # Best-Practices Review — Open Findings
 
-Review working file, tracked in git (since 2026-11-01) so it moves between devices. When a finding is fixed, mark it `Done` in the Status column and add a `**Status:**` line under its heading. The section stays as the record (changed 2026-11-14; fixed findings used to be deleted).
+Review working file, tracked in git (since 2026-11-01) so it moves between devices. When a finding is fixed, mark it `Done` in the Status column, switch its block's summary badge from 🔲 Open to ✅ Done, and add a `**Status:**` line at the top of the block. The block stays as the record (changed 2026-11-14; fixed findings used to be deleted). Each finding is a collapsible `<details>` block: click a title to expand it. New findings follow the same shape: `<details>`, `<summary><b>N — SEVERITY — Rule — Title</b> · 🔲 Open</summary>`, a blank line, the body, then `</details>`.
 
 - Source: `/best-practices-review audit` on `main` @ `3afe73f`, 2026-10-10
 - Scheduled: **step 2** of the build sequence (after #05 threat model, before #04). Includes per-service Postgres users + schema-only privileges (#6). #14 is handled by #04 Phase 3, not here. #05 may add more items assigned to step 2
 - Plan: `Interview-Preparation/project-ideas/README.md` → Build Sequence
 - ADRs expected when fixing **#30 (replaces #2's), #3, #6, #7, #13** (list + convention: `Interview-Preparation/project-ideas/README.md` → ADR Convention). Write the ADR in `docs/adr/` as part of that finding's fix
-- Workflow: pick one finding → understand it → fix → tests pass → mark it `Done` here (Status column + `**Status:**` line)
+- Workflow: pick one finding → understand it → fix → tests pass → mark it `Done` here (Status column, ✅ badge, `**Status:**` line)
 - **Threat model links:** #1 → T21, #2 → T18, #3 → T12, #6 → T31 + T32, #15 → T2, #16 → T9. When one of these is fixed, also update `docs/threat-model/` (risk register status, PR, residual DREAD; Control/Gap in the STRIDE file; changelog)
 - Severity: BLOCKER > MAJOR > MINOR > SUGGESTION
 - Not flagged on purpose (documented in `docs/architecture.md` → "Next plans"): stock race/decrement, client-settable order status, Gateway upstream timeouts, service-to-service auth, registration rate limit
@@ -51,7 +51,9 @@ Suggested order (changed 2026-11-14: #4 + #29 moved first, so the #30 ADR has it
 
 ---
 
-## 1 — MAJOR — GEN-DES-05 — Profile delete can't roll back
+<details>
+<summary><b>1 — MAJOR — GEN-DES-05 — Profile delete can't roll back</b> · 🔲 Open</summary>
+
 
 **Where:** `backend/user-service/src/main/java/com/fahim/userservice/service/ProfileService.java:92-100` (`ProfileService#delete`)
 
@@ -69,9 +71,11 @@ Rejected (original direction): `@Transactional` + `flush()` before the Keycloak 
 - Remaining window after the fix: Keycloak delete succeeds, then DB commit fails → orphan profile (harmless: no one can log in as that user). Compare with the opposite order.
 - Note: already listed in `project-ideas/01-oauth2-oidc/requirements.md` → "Carried over from Phase 4".
 
----
+</details>
 
-## 2 — MAJOR — SB-JPA-02 — HTTP call inside a DB transaction
+<details>
+<summary><b>2 — MAJOR — SB-JPA-02 — HTTP call inside a DB transaction</b> · 🔲 Open</summary>
+
 
 **Where:** `backend/order-service/src/main/java/com/fahim/orderservice/service/OrderService.java:21` (class-level `@Transactional`), `:32-33` (`create` → `productClient.fetchProduct`)
 
@@ -88,9 +92,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 - Why a second bean is needed if you split methods: proxy-based `@Transactional` and `this.` calls (rule SB-JPA-01).
 - How to see it: set `spring.datasource.hikari.maximum-pool-size=2`, slow Product Service down, fire 3 orders + 1 `GET /orders`.
 
----
+</details>
 
-## 3 — MAJOR — SB-JPA-05 — Unpaginated list endpoints
+<details>
+<summary><b>3 — MAJOR — SB-JPA-05 — Unpaginated list endpoints</b> · 🔲 Open</summary>
+
 
 **Where:**
 - `backend/product-service/src/main/java/com/fahim/productservice/service/ProductService.java:31-34` (`getAll` → `findAll()`), exposed by `ProductController#getAll` — **public, no auth**
@@ -107,9 +113,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 - Offset vs keyset (cursor) pagination — when offset gets slow.
 - Gateway and Postman collection need the new response shape too.
 
----
+</details>
 
-## 4 — MINOR — SB-CFG-08 — `open-in-view` not disabled
+<details>
+<summary><b>4 — MINOR — SB-CFG-08 — <code>open-in-view</code> not disabled</b> · ✅ Done</summary>
+
 
 **Status:** Done 2026-11-14, commit `97b7dca` on `review-findings` (with #29). `spring.jpa.open-in-view=false` in order, product and user service; test `<Service>ApplicationTests.openInViewIsOff`. Task: `Interview-Preparation/tasks/osiv-off-hikari-config/`.
 
@@ -126,9 +134,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **Understand first:** `OpenEntityManagerInViewInterceptor`, and what `LazyInitializationException` tells you once it's off.
 
----
+</details>
 
-## 5 — MINOR — GEN-OTHER — `show-sql=true` in base config
+<details>
+<summary><b>5 — MINOR — GEN-OTHER — <code>show-sql=true</code> in base config</b> · 🔲 Open</summary>
+
 
 **Where:** `application.properties:9` in order-service, product-service, user-service
 
@@ -138,9 +148,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **Fix direction:** Remove it. For local debugging use `logging.level.org.hibernate.SQL=debug` (+ `org.hibernate.orm.jdbc.bind=trace` for parameters) in a dev profile or local override.
 
----
+</details>
 
-## 6 — MINOR — SB-CFG-05 — Shared hardcoded DB superuser
+<details>
+<summary><b>6 — MINOR — SB-CFG-05 — Shared hardcoded DB superuser</b> · 🔲 Open</summary>
+
 
 **Where:** `application.properties:4-5` in order-service, product-service, user-service (`spring.datasource.username=postgres`, `password=postgres`)
 
@@ -152,9 +164,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **Understand first:** Postgres roles, `GRANT USAGE/CREATE ON SCHEMA`, `ALTER DEFAULT PRIVILEGES`; database-per-service vs schema-per-service.
 
----
+</details>
 
-## 7 — MINOR — SB-API-02 — Two error response shapes
+<details>
+<summary><b>7 — MINOR — SB-API-02 — Two error response shapes</b> · 🔲 Open</summary>
+
 
 **Where:** `GlobalExceptionHandler` in order-service, product-service, user-service (hand-built `Map` with `timestamp/status/error/message`)
 
@@ -166,9 +180,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **Understand first:** RFC 9457 fields; how `ResponseEntityExceptionHandler` already maps the built-in MVC exceptions.
 
----
+</details>
 
-## 8 — MINOR — SB-JPA-06 — No optimistic locking
+<details>
+<summary><b>8 — MINOR — SB-JPA-06 — No optimistic locking</b> · 🔲 Open</summary>
+
 
 **Where:** `Order.java`, `Product.java`, `Profile.java` (no `@Version` field)
 
@@ -180,9 +196,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **Understand first:** how Hibernate adds `WHERE version = ?` to the UPDATE; optimistic vs pessimistic locking; ETag/`If-Match` for HTTP.
 
----
+</details>
 
-## 9 — MINOR — SB-IO-01/03 — Dev-login HTTP client has no timeouts
+<details>
+<summary><b>9 — MINOR — SB-IO-01/03 — Dev-login HTTP client has no timeouts</b> · 🔲 Open</summary>
+
 
 **Where:** `backend/gateway/src/main/java/com/fahim/gateway/devlogin/KeycloakPasswordGrant.java:45-51`
 
@@ -192,9 +210,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **Fix direction:** Inject `RestClient.Builder`, set a request factory with timeouts (same pattern as `ProductClientConfig`).
 
----
+</details>
 
-## 10 — MINOR — GEN-SMELL-10 — Dead repository method
+<details>
+<summary><b>10 — MINOR — GEN-SMELL-10 — Dead repository method</b> · 🔲 Open</summary>
+
 
 **Where:** `backend/user-service/src/main/java/com/fahim/userservice/repository/ProfileRepository.java:8`
 
@@ -202,9 +222,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **Fix direction:** Delete it.
 
----
+</details>
 
-## 11 — SUGGESTION — SB-JPA-10 / GEN-SMELL-09 — Anemic entities, duplicated total calculation
+<details>
+<summary><b>11 — SUGGESTION — SB-JPA-10 / GEN-SMELL-09 — Anemic entities, duplicated total calculation</b> · 🔲 Open</summary>
+
 
 **Where:** `Order.java` (public setters for every field, including `setId`, `setUserSub`); `OrderService.java:44` and `:64` both compute `unitPrice × quantity`
 
@@ -216,9 +238,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **Understand first:** rich vs anemic domain model (Architecture #04 DDD — aggregates enforce invariants).
 
----
+</details>
 
-## 12 — SUGGESTION — SB-CFG-02 — Inconsistent config binding
+<details>
+<summary><b>12 — SUGGESTION — SB-CFG-02 — Inconsistent config binding</b> · 🔲 Open</summary>
+
 
 **Where:** `order-service/.../config/ProductClientConfig.java:15-17`, `gateway/.../config/RouteConfig.java:38-40` (`@Value`) vs `user-service/.../config/KeycloakAdminProperties.java` (validated `@ConfigurationProperties` record)
 
@@ -226,9 +250,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **Fix direction:** `ProductServiceProperties` record (`baseUrl`, `connectTimeout`, `readTimeout` as `Duration`) with `@Validated` + `@NotNull`; same for Gateway upstream URLs.
 
----
+</details>
 
-## 13 — SUGGESTION — GEN-DIST-08 / SB-TEST-05 — Code copy-pasted across services
+<details>
+<summary><b>13 — SUGGESTION — GEN-DIST-08 / SB-TEST-05 — Code copy-pasted across services</b> · 🔲 Open</summary>
+
 
 **Where:**
 - `KeycloakRealmRoleConverter` — identical in order-service and product-service
@@ -242,9 +268,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **Fix direction:** Decision, not a code fix: either accept duplication (independent deployability, documented in an ADR) or extract a small `platform-security` library. For 3 services, accepting + ADR is reasonable. Revisit if a 4th resource server appears.
 
----
+</details>
 
-## 14 — SUGGESTION — GEN-DEP-05 — No dependency/CVE scan in CI
+<details>
+<summary><b>14 — SUGGESTION — GEN-DEP-05 — No dependency/CVE scan in CI</b> · 🔲 Open</summary>
+
 
 **Where:** `.github/workflows/build-service.yml`
 
@@ -252,9 +280,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **Fix direction:** Belongs to project #04 (DevSecOps pipeline): Dependabot for Maven + GitHub Actions, OWASP Dependency-Check or Trivy step, fail on high CVEs.
 
----
+</details>
 
-## 15 — MINOR — GEN-TEST-01 — No test for session id rotation on login (from threat model T2)
+<details>
+<summary><b>15 — MINOR — GEN-TEST-01 — No test for session id rotation on login (from threat model T2)</b> · 🔲 Open</summary>
+
 
 **Where:** `backend/gateway/src/test/java/com/fahim/gateway/` (`AuthFlowTest`, `DevLoginTest`)
 
@@ -266,9 +296,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **When done:** risk register T2 → `Verified`, evidence = the test name; changelog entry.
 
----
+</details>
 
-## 16 — MINOR — GEN-TEST-01 — No test for `PUT /products/{id}` without `admin` (from threat model T9)
+<details>
+<summary><b>16 — MINOR — GEN-TEST-01 — No test for <code>PUT /products/{id}</code> without <code>admin</code> (from threat model T9)</b> · 🔲 Open</summary>
+
 
 **Where:** `backend/product-service/src/test/java/com/fahim/productservice/ProductControllerSecurityTest.java`
 
@@ -280,7 +312,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **When done:** risk register T9 → `Verified`, evidence = the test name; changelog entry.
 
-## 17 — MINOR — GEN-TEST-01 — No test for a token from the wrong issuer (from ADR-0001 round 1 review)
+</details>
+
+<details>
+<summary><b>17 — MINOR — GEN-TEST-01 — No test for a token from the wrong issuer (from ADR-0001 round 1 review)</b> · 🔲 Open</summary>
+
 
 **Where:** `AbstractIntegrationTest` and `TestJwts` in Order, Product and User Service; `TokenValidationTest` in each
 
@@ -292,7 +328,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **When done:** ADR-0001 Verification → replace the "not covered by tests" line with the test names.
 
-## 18 — MINOR — SB-SEC — User and Order Service fail open for new endpoints (from ADR-0003 round 2 and 3 reviews)
+</details>
+
+<details>
+<summary><b>18 — MINOR — SB-SEC — User and Order Service fail open for new endpoints (from ADR-0003 round 2 and 3 reviews)</b> · 🔲 Open</summary>
+
 
 **Where:** `backend/user-service/.../config/SecurityConfig.java`, `backend/order-service/.../config/SecurityConfig.java`
 
@@ -304,7 +344,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **When done:** ADR-0003 → move items 1 and 5 of "Scheduled hardening" into Decision outcome / Verification; drop the "Until step 2, User and Order Service fail open" residual risk; correct the "Today only Product fails closed" sentence.
 
-## 19 — MINOR — SB-SEC — Wildcard matchers on permissive rules (from ADR-0003 round 2 review)
+</details>
+
+<details>
+<summary><b>19 — MINOR — SB-SEC — Wildcard matchers on permissive rules (from ADR-0003 round 2 review)</b> · 🔲 Open</summary>
+
 
 **Where:** Product `SecurityConfig` (`GET /products/**` `permitAll`), Order `SecurityConfig` (`GET /orders/**` read + `user`), Gateway `SecurityConfig` (`GET /products/**` `permitAll`) and `RouteConfig` (`publicRoute("product-read", GET, "/products/**")`, no token relay)
 
@@ -316,7 +360,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **When done:** ADR-0003 → move item 2 of "Scheduled hardening" into Decision outcome and update the Gateway rules list; drop the "Wildcard matchers" residual risk once #20 also lands.
 
-## 20 — MINOR — GEN-TEST-01 — No route-manifest or cross-user ownership test (from ADR-0003 round 2 review)
+</details>
+
+<details>
+<summary><b>20 — MINOR — GEN-TEST-01 — No route-manifest or cross-user ownership test (from ADR-0003 round 2 review)</b> · 🔲 Open</summary>
+
 
 **Where:** test sources of Order, Product and User Service
 
@@ -330,7 +378,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **When done:** ADR-0003 → move items 3–4 into Verification with the test names; remove the "Not yet written" line. ADR-0004 → add the cross-user test to Verification (Scheduled hardening item 3). If a regression still gets through, ADR-0004's RLS migration path is next (needs `SET LOCAL` per transaction with pooled connections).
 
-## 21 — MINOR — SB-SEC — Unscoped `JpaRepository` methods on owner-scoped repositories (from ADR-0004 round 2 review)
+</details>
+
+<details>
+<summary><b>21 — MINOR — SB-SEC — Unscoped <code>JpaRepository</code> methods on owner-scoped repositories (from ADR-0004 round 2 review)</b> · 🔲 Open</summary>
+
 
 **Where:** `backend/order-service/.../repository/OrderRepository.java`, `backend/user-service/.../repository/ProfileRepository.java`
 
@@ -376,7 +428,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **When done:** ADR-0004 → move items 1–2 of "Scheduled hardening" into Decision outcome / Verification with the test name; reword the "Unscoped repository methods are callable today" residual risk and the Scope paragraph; drop the "until step 2" clause from the one-minute answer.
 
-## 22 — MINOR — SB-SEC — Order Service trusts Product Service's reply unchecked (from ADR-0009 revision, T38)
+</details>
+
+<details>
+<summary><b>22 — MINOR — SB-SEC — Order Service trusts Product Service's reply unchecked (from ADR-0009 revision, T38)</b> · 🔲 Open</summary>
+
 
 **Where:** `backend/order-service/.../service/OrderService.java` (`create`), a new Flyway migration in `backend/order-service/src/main/resources/db/migration/`
 
@@ -388,7 +444,11 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **When done:** ADR-0009 Verification → add the test names; risk register T38 → drop "Known gap, unscheduled"; `stride/data-flows.md` T38 → move reply validation from Gap to Control today; changelog entry.
 
-## 23 — MINOR — GEN-TEST-01 — Dev-login guard has no ArchUnit rule and no startup-failure test (from ADR-0010 review)
+</details>
+
+<details>
+<summary><b>23 — MINOR — GEN-TEST-01 — Dev-login guard has no ArchUnit rule and no startup-failure test (from ADR-0010 review)</b> · 🔲 Open</summary>
+
 
 **Where:** `backend/gateway/src/test/java/com/fahim/gateway/devlogin/`, `backend/gateway/pom.xml`
 
@@ -405,7 +465,11 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 
 **When done:** ADR-0010 Verification → replace "No test covers the startup failure" with the test names.
 
-## 24 — MINOR — GEN-TEST-01 — Realm facts the ADRs rely on are checked by inspection only (from ADR-0011 rounds 1–2 and ADR-0006 round 3 reviews)
+</details>
+
+<details>
+<summary><b>24 — MINOR — GEN-TEST-01 — Realm facts the ADRs rely on are checked by inspection only (from ADR-0011 rounds 1–2 and ADR-0006 round 3 reviews)</b> · 🔲 Open</summary>
+
 
 **Where:** `docker/keycloak/secure-shop-realm.json`; a new unit test (any service's test sources, or a small test module)
 
@@ -417,7 +481,11 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 
 **When done:** ADR-0011 and ADR-0006 Verification → replace "by inspection, no test" with the test name.
 
-## 25 — MINOR — GEN-TEST-01 — No context-level startup test for a missing secret (from ADR-0007 round 2 review)
+</details>
+
+<details>
+<summary><b>25 — MINOR — GEN-TEST-01 — No context-level startup test for a missing secret (from ADR-0007 round 2 review)</b> · 🔲 Open</summary>
+
 
 **Where:** Gateway and User Service test sources
 
@@ -429,7 +497,11 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 
 **When done:** ADR-0007 Verification → add the test names; reword "the same check, the same message, the same tests" to "same condition, same hint, parallel tests" (round 2 note).
 
-## 26 — SUGGESTION — SB-SEC — `admin-cli` keeps direct access grants in the app realm (from ADR-0006 round 3 review)
+</details>
+
+<details>
+<summary><b>26 — SUGGESTION — SB-SEC — <code>admin-cli</code> keeps direct access grants in the app realm (from ADR-0006 round 3 review)</b> · 🔲 Open</summary>
+
 
 **Where:** `docker/keycloak/secure-shop-realm.json`, client `admin-cli`
 
@@ -441,7 +513,11 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 
 **When done:** risk register T26 note; ADR-0006 Verification line.
 
-## 27 — SUGGESTION — GEN-OTHER — "Test data only" has no visible notice (from ADR-0013 round 1 review, F6)
+</details>
+
+<details>
+<summary><b>27 — SUGGESTION — GEN-OTHER — "Test data only" has no visible notice (from ADR-0013 round 1 review, F6)</b> · 🔲 Open</summary>
+
 
 **Where:** `README.md`, `docs/development.md`
 
@@ -451,7 +527,11 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 
 **When done:** ADR-0013 → mention the notice under Verification.
 
-## 28 — MINOR — GEN-OTHER — ADR-0014 accepted with its round 1 REVISE items open (approver override, 2026-11-08)
+</details>
+
+<details>
+<summary><b>28 — MINOR — GEN-OTHER — ADR-0014 accepted with its round 1 REVISE items open (approver override, 2026-11-08)</b> · 🔲 Open</summary>
+
 
 **Where:** `docs/adr/0014-accept-no-tls-local-rnd.md`
 
@@ -463,7 +543,11 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 
 **When done:** mark it `Done`; ADR-0014 review record → re-review row.
 
-## 29 — MINOR — SB-CFG — HikariCP not configured: defaults everywhere, 30 s connection wait (added 2026-11-08)
+</details>
+
+<details>
+<summary><b>29 — MINOR — SB-CFG — HikariCP not configured: defaults everywhere, 30 s connection wait (added 2026-11-08)</b> · ✅ Done</summary>
+
 
 **Status:** Done 2026-11-14, commit `97b7dca` on `review-findings` (with #4). Each service: `pool-name=<service>-pool`, `maximum-pool-size=5`, `minimum-idle=2`, `connection-timeout=3000`, `leak-detection-threshold=2000`; a pool timeout answers `503` + `Retry-After: 1` (`PoolTimeoutTest.exhaustedPoolAnswers503`), tests `<Service>ApplicationTests.poolIsConfigured`. Values and reasons: `docs/development.md` → Database connections. Follow-up: #31 (an outage also reads as "busy").
 
@@ -489,7 +573,11 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 
 **When done:** note the values in `docs/development.md`; #4 and #30 use the leak detection log as their check.
 
-## 30 — MAJOR — SB-JPA — Decision: no `@Transactional`; failures recorded as state, not rolled back (added 2026-11-08)
+</details>
+
+<details>
+<summary><b>30 — MAJOR — SB-JPA — Decision: no <code>@Transactional</code>; failures recorded as state, not rolled back (added 2026-11-08)</b> · 🔲 Open</summary>
+
 
 **Where:** `OrderService` (class-level `@Transactional`, two `readOnly`), `ProductService` (class-level, two `readOnly`), `ProfileService` (`getBySub` `readOnly`, `update`); every future service class
 
@@ -520,9 +608,11 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 
 **When done:** ADR in `docs/adr/`; mark it `Done`; #1 and #2 reference the ADR.
 
----
+</details>
 
-## 31 — MINOR — SB-API — A DB outage answers 503 "Database busy" and logs at WARN; 500 branch untested (added 2026-11-14)
+<details>
+<summary><b>31 — MINOR — SB-API — A DB outage answers 503 "Database busy" and logs at WARN; 500 branch untested (added 2026-11-14)</b> · ✅ Done</summary>
+
 
 **Status:** Done 2026-11-14, commit `82e0c92` on `review-findings`. Busy and unreachable both answer `503` "Service temporarily unavailable, try again later" with no database detail or stack trace; the log tells them apart: WARN `DB pool exhausted` (Hikari timeout without a cause) vs. ERROR `DB unreachable` with the cause's stack. Other failures stay `500` "Internal error". Tests: `GlobalExceptionHandlerTest` (busy, unreachable, other; body has only the 4 generic keys) and `PoolTimeoutTest` (no `trace`/`exception`). Manual check with Postgres stopped: `503` generic body after 3.0 s, ERROR with `PSQLException: Connection to localhost:5432 refused`; back to `200` after a restart. Task: `Interview-Preparation/tasks/db-failure-generic-error-log-levels/`.
 
@@ -539,9 +629,11 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 - **`Retry-After: 1` is shorter than the 3 s pool wait.** Clients that honour it would retry in sync while the pool is still full.
 - **Security review, INFO:** the smaller pool (10 → 5) halves the number of concurrent anonymous `GET /products` calls needed to fill it. The 3 s timeout bounds the effect; #3 (pagination) and rate limiting (step 6) are the real fixes.
 
----
+</details>
 
-## 32 — MINOR — GEN-DEP — Testcontainers version override in 3 POMs; remove when the Boot parent is >= 3.5.16 (added 2026-11-14)
+<details>
+<summary><b>32 — MINOR — GEN-DEP — Testcontainers version override in 3 POMs; remove when the Boot parent is &gt;= 3.5.16 (added 2026-11-14)</b> · 🔲 Open</summary>
+
 
 **Where:** `backend/order-service/pom.xml`, `backend/product-service/pom.xml`, `backend/user-service/pom.xml`: `<testcontainers.version>1.21.4</testcontainers.version>` in `<properties>`, with a comment pointing here (commit `0cbbb6b`)
 
@@ -553,9 +645,11 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 
 **When done:** mark it `Done`. Task: `Interview-Preparation/tasks/ci-testcontainers-docker-api/`.
 
----
+</details>
 
-## 33 — MINOR — GEN-OBS — No correlation ID in error responses: a generic client error can't be matched to its log line (added 2026-11-14)
+<details>
+<summary><b>33 — MINOR — GEN-OBS — No correlation ID in error responses: a generic client error can't be matched to its log line (added 2026-11-14)</b> · 🔲 Open</summary>
+
 
 **Where:** every service's `GlobalExceptionHandler.body()` (order, product, user), and the Gateway's error responses. The body is `timestamp`, `status`, `error` and `message`, with no request or trace ID. No MDC request ID in the log pattern either.
 
@@ -571,3 +665,6 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 Do it with #7 (one error format), which reshapes the body anyway. The ID is safe to expose; it carries no internal detail.
 
 **Understand first:** Micrometer Tracing (Boot 3) puts `traceId`/`spanId` in the MDC automatically. `ProblemDetail`'s `instance` field vs. a custom property. Trust: never accept a client-supplied ID without validating its format (log injection).
+
+</details>
+
