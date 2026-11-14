@@ -113,7 +113,9 @@ Same settings in order, product and user service (`application.properties`), fro
 | `spring.datasource.hikari.leak-detection-threshold` | `2000` ms | Logs a WARN `Connection leak detection triggered` with the stack trace of where any connection held over 2 s was borrowed. On everywhere, tests included |
 
 - **A leak-detection WARN** doesn't always mean a leak. It means a connection was held over 2 s: a slow query, or slow work inside a transaction. The stack trace shows where the connection was taken. Treat it as a bug to look at, not as noise to silence by raising the threshold.
-- **A pool timeout** answers `503` `"Database busy, try again"` and logs `No database connection free within the pool timeout: ...` at WARN. The log message names the real cause. Today a stopped Postgres also shows up this way, as `... Connection refused` (finding #31).
+- **A pool timeout** answers `503` `"Service temporarily unavailable, try again later"` with `Retry-After: 1`. The client never sees a database detail or a stack trace; the log level tells the cases apart (finding #31):
+  - **Pool busy, database healthy:** WARN `DB pool exhausted: <pool> - Connection is not available, request timed out after 3000ms (total=, active=, idle=, waiting=)`. Load: look at slow queries or long holds (leak WARNs).
+  - **Database unreachable:** ERROR `DB unreachable: ...` with the cause's stack trace (e.g. `PSQLException: Connection to localhost:5432 refused`). Hikari attaches its last connection failure as the cause. Right after a short blip that cause can linger until Hikari reconnects, so a busy timeout may log at ERROR for a moment.
 - **Other failures to open a transaction** answer `500` `"Internal error"` and log at ERROR with the stack trace.
 
 ## Tests

@@ -43,7 +43,7 @@ Review working file, tracked in git (since 2026-11-01) so it moves between devic
 | 28 | MINOR | GEN-OTHER | ADR-0014 accepted with its round 1 REVISE items open | docs | Open |
 | 29 | MINOR | SB-CFG | HikariCP not configured: defaults everywhere, 30 s connection wait | order, product, user | Done 2026-11-14 (`97b7dca`) |
 | 30 | MAJOR | SB-JPA | Decision: no `@Transactional`; failures recorded as state, not rolled back | order, product, user | Open |
-| 31 | MINOR | SB-API | A DB outage answers 503 "Database busy" and logs at WARN; 500 branch untested | order, product, user | Open |
+| 31 | MINOR | SB-API | A DB outage answers 503 "Database busy" and logs at WARN; 500 branch untested | order, product, user | Done 2026-11-14 (`82e0c92`) |
 | 32 | MINOR | GEN-DEP | Testcontainers version override in 3 POMs; remove when the Boot parent is >= 3.5.16 | order, product, user | Open |
 
 Suggested order (changed 2026-11-14: #4 + #29 moved first, so the #30 ADR has its precondition and its check in place): ~~4 + 29 (config)~~ done → 30 (ADR first: it sets the direction for 1, 2, 22) → 1 → 2 + 22 (both in `OrderService.create` and the Product call), 3 → 5, 6 → 7, 8 → 9, 10, 12 → 11, 13 → tests 15, 16, 17, 23, 25 → realm 24 + 26 → 18, 19, 20, 21 → docs 27, 28 (design calls; 14 belongs to project #04).
@@ -522,6 +522,8 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 ---
 
 ## 31 — MINOR — SB-API — A DB outage answers 503 "Database busy" and logs at WARN; 500 branch untested (added 2026-11-14)
+
+**Status:** Done 2026-11-14, commit `82e0c92` on `review-findings`. Busy and unreachable both answer `503` "Service temporarily unavailable, try again later" with no database detail or stack trace; the log tells them apart: WARN `DB pool exhausted` (Hikari timeout without a cause) vs. ERROR `DB unreachable` with the cause's stack. Other failures stay `500` "Internal error". Tests: `GlobalExceptionHandlerTest` (busy, unreachable, other; body has only the 4 generic keys) and `PoolTimeoutTest` (no `trace`/`exception`). Manual check with Postgres stopped: `503` generic body after 3.0 s, ERROR with `PSQLException: Connection to localhost:5432 refused`; back to `200` after a restart. Task: `Interview-Preparation/tasks/db-failure-generic-error-log-levels/`.
 
 **Where:** `GlobalExceptionHandler#handleNoTransaction` and `isPoolTimeout` in order-, product- and user-service (added by #29, commit `97b7dca`)
 
