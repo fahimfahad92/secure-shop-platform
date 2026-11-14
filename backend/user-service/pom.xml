@@ -28,6 +28,10 @@
     </scm>
     <properties>
         <java.version>21</java.version>
+        <!-- Boot 3.5.5 manages Testcontainers 1.21.3, whose Docker client (API 1.32) the CI runner's
+             Docker rejects (minimum 1.40). 1.21.4 fixes it. Remove once the parent is >= 3.5.16
+             (finding #32). -->
+        <testcontainers.version>1.21.4</testcontainers.version>
     </properties>
     <dependencies>
         <dependency>
