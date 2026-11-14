@@ -44,6 +44,7 @@ Review working file, tracked in git (since 2026-11-01) so it moves between devic
 | 29 | MINOR | SB-CFG | HikariCP not configured: defaults everywhere, 30 s connection wait | order, product, user | Done 2026-11-14 (`97b7dca`) |
 | 30 | MAJOR | SB-JPA | Decision: no `@Transactional`; failures recorded as state, not rolled back | order, product, user | Open |
 | 31 | MINOR | SB-API | A DB outage answers 503 "Database busy" and logs at WARN; 500 branch untested | order, product, user | Open |
+| 32 | MINOR | GEN-DEP | Testcontainers version override in 3 POMs; remove when the Boot parent is >= 3.5.16 | order, product, user | Open |
 
 Suggested order (changed 2026-11-14: #4 + #29 moved first, so the #30 ADR has its precondition and its check in place): ~~4 + 29 (config)~~ done → 30 (ADR first: it sets the direction for 1, 2, 22) → 1 → 2 + 22 (both in `OrderService.create` and the Product call), 3 → 5, 6 → 7, 8 → 9, 10, 12 → 11, 13 → tests 15, 16, 17, 23, 25 → realm 24 + 26 → 18, 19, 20, 21 → docs 27, 28 (design calls; 14 belongs to project #04).
 
@@ -534,3 +535,17 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 - **One WARN per rejected request** under saturation. Hikari's pool metrics (`hikaricp.connections.timeout`) are the better signal: step 6 observability.
 - **`Retry-After: 1` is shorter than the 3 s pool wait.** Clients that honour it would retry in sync while the pool is still full.
 - **Security review, INFO:** the smaller pool (10 → 5) halves the number of concurrent anonymous `GET /products` calls needed to fill it. The 3 s timeout bounds the effect; #3 (pagination) and rate limiting (step 6) are the real fixes.
+
+---
+
+## 32 — MINOR — GEN-DEP — Testcontainers version override in 3 POMs; remove when the Boot parent is >= 3.5.16 (added 2026-11-14)
+
+**Where:** `backend/order-service/pom.xml`, `backend/product-service/pom.xml`, `backend/user-service/pom.xml`: `<testcontainers.version>1.21.4</testcontainers.version>` in `<properties>`, with a comment pointing here (commit `0cbbb6b`)
+
+**What:** Spring Boot 3.5.5 manages Testcontainers 1.21.3. Its Docker client asks for API 1.32, and the `ubuntu-latest` runner's Docker now requires 1.40, so every integration test on PR #8 failed to start Postgres (`client version 1.32 is too old. Minimum supported API version is 1.40`). The three POMs override the version to 1.21.4 ("makes version 1.21.x work with recent Docker Engine changes"; it is managed by Boot 3.5.16). PR #8 went green with it (2026-11-14, `0cbbb6b` and `82e0c92`).
+
+**Why it matters:** the override keeps pinning 1.21.4 after a Boot bump, silently ignoring the newer Testcontainers that later Boot versions bring. It is a test-scope pin that is easy to forget.
+
+**Fix direction:** when the parent moves to Boot ≥ 3.5.16, delete the property and its comment in all three POMs. Check that `./mvnw dependency:tree -Dincludes=org.testcontainers` shows the Boot-managed version (≥ 1.21.4) and that `verify` passes on CI.
+
+**When done:** mark it `Done`. Task: `Interview-Preparation/tasks/ci-testcontainers-docker-api/`.
