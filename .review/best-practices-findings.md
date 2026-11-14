@@ -1,48 +1,53 @@
 # Best-Practices Review — Open Findings
 
-Review working file, tracked in git (since 2026-11-01) so it moves between devices. Delete a finding's section when it is fixed.
+Review working file, tracked in git (since 2026-11-01) so it moves between devices. When a finding is fixed, mark it `Done` in the Status column and add a `**Status:**` line under its heading. The section stays as the record (changed 2026-11-14; fixed findings used to be deleted).
 
 - Source: `/best-practices-review audit` on `main` @ `3afe73f`, 2026-10-10
 - Scheduled: **step 2** of the build sequence (after #05 threat model, before #04). Includes per-service Postgres users + schema-only privileges (#6). #14 is handled by #04 Phase 3, not here. #05 may add more items assigned to step 2
 - Plan: `Interview-Preparation/project-ideas/README.md` → Build Sequence
-- ADRs expected when fixing **#2, #3, #6, #7, #13** (list + convention: `Interview-Preparation/project-ideas/README.md` → ADR Convention). Write the ADR in `docs/adr/` as part of that finding's fix
-- Workflow: pick one finding → understand it → fix → tests pass → delete its section here
+- ADRs expected when fixing **#30 (replaces #2's), #3, #6, #7, #13** (list + convention: `Interview-Preparation/project-ideas/README.md` → ADR Convention). Write the ADR in `docs/adr/` as part of that finding's fix
+- Workflow: pick one finding → understand it → fix → tests pass → mark it `Done` here (Status column + `**Status:**` line)
 - **Threat model links:** #1 → T21, #2 → T18, #3 → T12, #6 → T31 + T32, #15 → T2, #16 → T9. When one of these is fixed, also update `docs/threat-model/` (risk register status, PR, residual DREAD; Control/Gap in the STRIDE file; changelog)
 - Severity: BLOCKER > MAJOR > MINOR > SUGGESTION
 - Not flagged on purpose (documented in `docs/architecture.md` → "Next plans"): stock race/decrement, client-settable order status, Gateway upstream timeouts, service-to-service auth, registration rate limit
 
-| # | Severity | Rule | Title | Service |
-|---|---|---|---|---|
-| 1 | MAJOR | GEN-DES-05 | Profile delete can't roll back | user-service |
-| 2 | MAJOR | SB-JPA-02 | HTTP call inside DB transaction | order-service |
-| 3 | MAJOR | SB-JPA-05 | Unpaginated list endpoints | product, order |
-| 4 | MINOR | SB-CFG-08 | `open-in-view` not disabled | order, product, user |
-| 5 | MINOR | GEN-OTHER | `show-sql=true` in base config | order, product, user |
-| 6 | MINOR | SB-CFG-05 | Shared hardcoded DB superuser | order, product, user |
-| 7 | MINOR | SB-API-02 | Two error response shapes | order, product, user |
-| 8 | MINOR | SB-JPA-06 | No optimistic locking | order, product, user |
-| 9 | MINOR | SB-IO-01/03 | Dev-login HTTP client: no timeouts | gateway |
-| 10 | MINOR | GEN-SMELL-10 | Dead repository method | user-service |
-| 11 | SUGGESTION | SB-JPA-10 | Anemic entities, duplicated total calc | order-service |
-| 12 | SUGGESTION | SB-CFG-02 | Inconsistent config binding | order, gateway |
-| 13 | SUGGESTION | GEN-DIST-08 | Code copy-pasted across services | all |
-| 14 | SUGGESTION | GEN-DEP-05 | No dependency/CVE scan in CI | CI |
-| 15 | MINOR | GEN-TEST-01 | No test for session id rotation on login (threat T2) | gateway |
-| 16 | MINOR | GEN-TEST-01 | No test for `PUT /products/{id}` without `admin` (threat T9) | product-service |
-| 17 | MINOR | GEN-TEST-01 | No test for a token from the wrong issuer (ADR-0001 round 1) | order, product, user |
-| 18 | MINOR | SB-SEC | User and Order Service `anyRequest()` defaults fail open for new endpoints (ADR-0003) | user, order |
-| 19 | MINOR | SB-SEC | Wildcard matchers on permissive rules (ADR-0003) | product, order, gateway |
-| 20 | MINOR | GEN-TEST-01 | No route-manifest or cross-user ownership test (ADR-0003) | order, product, user |
-| 21 | MINOR | SB-SEC | Unscoped `JpaRepository` methods on owner-scoped repositories (ADR-0004) | order, user |
-| 22 | MINOR | SB-SEC | Order Service trusts Product Service's reply unchecked (ADR-0009, T38) | order-service |
-| 23 | MINOR | GEN-TEST-01 | Dev-login guard has no ArchUnit rule and no startup-failure test (ADR-0010) | gateway |
-| 24 | MINOR | GEN-TEST-01 | Realm facts the ADRs rely on are checked by inspection only (ADR-0011, ADR-0006) | realm |
-| 25 | MINOR | GEN-TEST-01 | No context-level startup test for a missing secret (ADR-0007) | gateway, user |
-| 26 | SUGGESTION | SB-SEC | `admin-cli` keeps direct access grants in the app realm (ADR-0006) | realm |
-| 27 | SUGGESTION | GEN-OTHER | "Test data only" has no visible notice (ADR-0013) | docs |
-| 28 | MINOR | GEN-OTHER | ADR-0014 accepted with its round 1 REVISE items open | docs |
+| # | Severity | Rule | Title | Service | Status |
+|---|---|---|---|---|---|
+| 1 | MAJOR | GEN-DES-05 | Profile delete can't roll back | user-service | Open |
+| 2 | MAJOR | SB-JPA-02 | HTTP call inside DB transaction | order-service | Open |
+| 3 | MAJOR | SB-JPA-05 | Unpaginated list endpoints | product, order | Open |
+| 4 | MINOR | SB-CFG-08 | `open-in-view` not disabled | order, product, user | Done 2026-11-14 (`97b7dca`) |
+| 5 | MINOR | GEN-OTHER | `show-sql=true` in base config | order, product, user | Open |
+| 6 | MINOR | SB-CFG-05 | Shared hardcoded DB superuser | order, product, user | Open |
+| 7 | MINOR | SB-API-02 | Two error response shapes | order, product, user | Open |
+| 8 | MINOR | SB-JPA-06 | No optimistic locking | order, product, user | Open |
+| 9 | MINOR | SB-IO-01/03 | Dev-login HTTP client: no timeouts | gateway | Open |
+| 10 | MINOR | GEN-SMELL-10 | Dead repository method | user-service | Open |
+| 11 | SUGGESTION | SB-JPA-10 | Anemic entities, duplicated total calc | order-service | Open |
+| 12 | SUGGESTION | SB-CFG-02 | Inconsistent config binding | order, gateway | Open |
+| 13 | SUGGESTION | GEN-DIST-08 | Code copy-pasted across services | all | Open |
+| 14 | SUGGESTION | GEN-DEP-05 | No dependency/CVE scan in CI | CI | Open |
+| 15 | MINOR | GEN-TEST-01 | No test for session id rotation on login (threat T2) | gateway | Open |
+| 16 | MINOR | GEN-TEST-01 | No test for `PUT /products/{id}` without `admin` (threat T9) | product-service | Open |
+| 17 | MINOR | GEN-TEST-01 | No test for a token from the wrong issuer (ADR-0001 round 1) | order, product, user | Open |
+| 18 | MINOR | SB-SEC | User and Order Service `anyRequest()` defaults fail open for new endpoints (ADR-0003) | user, order | Open |
+| 19 | MINOR | SB-SEC | Wildcard matchers on permissive rules (ADR-0003) | product, order, gateway | Open |
+| 20 | MINOR | GEN-TEST-01 | No route-manifest or cross-user ownership test (ADR-0003) | order, product, user | Open |
+| 21 | MINOR | SB-SEC | Unscoped `JpaRepository` methods on owner-scoped repositories (ADR-0004) | order, user | Open |
+| 22 | MINOR | SB-SEC | Order Service trusts Product Service's reply unchecked (ADR-0009, T38) | order-service | Open |
+| 23 | MINOR | GEN-TEST-01 | Dev-login guard has no ArchUnit rule and no startup-failure test (ADR-0010) | gateway | Open |
+| 24 | MINOR | GEN-TEST-01 | Realm facts the ADRs rely on are checked by inspection only (ADR-0011, ADR-0006) | realm | Open |
+| 25 | MINOR | GEN-TEST-01 | No context-level startup test for a missing secret (ADR-0007) | gateway, user | Open |
+| 26 | SUGGESTION | SB-SEC | `admin-cli` keeps direct access grants in the app realm (ADR-0006) | realm | Open |
+| 27 | SUGGESTION | GEN-OTHER | "Test data only" has no visible notice (ADR-0013) | docs | Open |
+| 28 | MINOR | GEN-OTHER | ADR-0014 accepted with its round 1 REVISE items open | docs | Open |
+| 29 | MINOR | SB-CFG | HikariCP not configured: defaults everywhere, 30 s connection wait | order, product, user | Done 2026-11-14 (`97b7dca`) |
+| 30 | MAJOR | SB-JPA | Decision: no `@Transactional`; failures recorded as state, not rolled back | order, product, user | Open |
+| 31 | MINOR | SB-API | A DB outage answers 503 "Database busy" and logs at WARN; 500 branch untested | order, product, user | Done 2026-11-14 (`82e0c92`) |
+| 32 | MINOR | GEN-DEP | Testcontainers version override in 3 POMs; remove when the Boot parent is >= 3.5.16 | order, product, user | Open |
+| 33 | MINOR | GEN-OBS | No correlation ID in error responses: a generic client error can't be matched to its log line | order, product, user, gateway | Open |
 
-Suggested order: 1 → 2, 3 → 4, 5, 6 → 7, 8 → 9, 10, 12 → 11, 13, 14 (design calls; 14 belongs to project #04).
+Suggested order (changed 2026-11-14: #4 + #29 moved first, so the #30 ADR has its precondition and its check in place): ~~4 + 29 (config)~~ done → 30 (ADR first: it sets the direction for 1, 2, 22) → 1 → 2 + 22 (both in `OrderService.create` and the Product call), 3 → 5, 6 → 7, 8 → 9, 10, 12 → 11, 13 → tests 15, 16, 17, 23, 25 → realm 24 + 26 → 18, 19, 20, 21 → docs 27, 28 (design calls; 14 belongs to project #04).
 
 ---
 
@@ -54,7 +59,9 @@ Suggested order: 1 → 2, 3 → 4, 5, 6 → 7, 8 → 9, 10, 12 → 11, 13, 14 (d
 
 **Why it matters:** Keycloak down or returns 5xx → profile row is gone, Keycloak user still exists. User can still log in, but `GET /users/me` returns 404 forever and re-registering fails with 409 (username taken in Keycloak). Existing test `delete_removesProfileThenKeycloakUser` only covers the happy path with mocks, so it can't catch this.
 
-**Fix direction:** `@Transactional` on `delete()` + `profileRepository.flush()` before the Keycloak call (so the DELETE SQL actually runs and can fail first). Keycloak failure → exception → transaction rolls back → profile restored. Add an integration test where `deleteUser` throws and assert the profile still exists.
+**Fix direction (revised 2026-11-08, follows #30: no `@Transactional`, failures recorded as state):** Mark the profile `DELETE_PENDING` (own commit), call Keycloak `deleteUser`, then delete the row. Keycloak fails → set `DELETE_FAILED` with the error and time, return `503`; the row and the account stay, the user can retry (`deleteUser` already treats `404` as done, so a retry is safe). Keycloak succeeds, row delete fails → the row stays `DELETE_PENDING` with no login behind it; log loudly with the `sub`, the same way `register()` logs an orphan. Tests: `deleteUser` throws → row `DELETE_FAILED`, account untouched; row delete fails → `DELETE_PENDING` and the log line; happy path → row gone. Rewrite the Javadoc ("the one we can roll back by simply failing" is false). `GET /users/me` on a `DELETE_PENDING`/`DELETE_FAILED` row: decide whether it reads as `404` or shows the status.
+
+Rejected (original direction): `@Transactional` + `flush()` before the Keycloak call. It rolls the profile back on a Keycloak failure, but holds a DB connection and the row lock for the whole Keycloak call (#2's problem) and leaves no record that a delete failed (#30).
 
 **Understand first:**
 - Why `repository.delete()` alone commits: Spring Data repository methods are `@Transactional` themselves when no outer transaction exists.
@@ -72,7 +79,9 @@ Suggested order: 1 → 2, 3 → 4, 5, 6 → 7, 8 → 9, 10, 12 → 11, 13, 14 (d
 
 **Why it matters:** Product Service timeouts are 2s connect + 3s read, so one slow call holds a connection up to ~5s. Hikari's default pool is 10. Ten concurrent orders against a slow Product Service exhaust the pool, and then *every* DB operation in order-service waits, including `GET /orders`, which doesn't touch Product Service at all. One slow dependency takes down unrelated endpoints.
 
-**Fix direction:** Do the remote call outside any transaction, open the transaction only for the write. Options: remove `@Transactional` from `create()` and rely on `save()`'s own transaction (single write, so that's enough), or split into an orchestrating method (no tx) + a `@Transactional` persist method on another bean (self-invocation would bypass the proxy).
+**Fix direction (revised 2026-11-08, follows #30):** Remove the class-level `@Transactional` from `OrderService` (and the `readOnly` ones). In `create()`, save the order first as `PENDING` (own commit, connection returned), then call Product Service with no connection held, then update it: `CONFIRMED` with the price, or a failure status (`REJECTED` for unknown product or not enough stock, `FAILED` for Product Service unavailable) with the reason and time. The API answers stay `400`/`409`/`503`, but every failed attempt now leaves a row. Do it together with #22 (reply validation is one more failure reason). Needs a migration: new status values (the `CHECK` on `status` lists only `PENDING`, `CONFIRMED`, `CANCELLED`) and a `failure_reason` column. Decide how failed orders show in `GET /orders` (hidden, or listed with their status).
+
+Rejected (original direction): splitting into an orchestrating method plus a `@Transactional` persist method on another bean. It fixes the connection hold but keeps transactions, and a failure still leaves nothing behind (#30).
 
 **Understand first:**
 - When Spring/Hibernate acquires the connection (transaction begin, not first query).
@@ -102,13 +111,18 @@ Suggested order: 1 → 2, 3 → 4, 5, 6 → 7, 8 → 9, 10, 12 → 11, 13, 14 (d
 
 ## 4 — MINOR — SB-CFG-08 — `open-in-view` not disabled
 
+**Status:** Done 2026-11-14, commit `97b7dca` on `review-findings` (with #29). `spring.jpa.open-in-view=false` in order, product and user service; test `<Service>ApplicationTests.openInViewIsOff`. Task: `Interview-Preparation/tasks/osiv-off-hikari-config/`.
+
 **Where:** `application.properties` of order-service, product-service, user-service (property absent)
 
 **What:** `spring.jpa.open-in-view` defaults to `true`: the Hibernate session stays open for the whole web request, including JSON serialisation.
 
-**Why it matters:** Lazy associations can be loaded silently from the controller/serialiser, outside any transaction, hiding N+1 queries until production. Boot logs a warning about it at every startup. No lazy associations today, so no current bug — this prevents the first one.
+**Why it matters:**
+- **Connections held per request.** The open session keeps its JDBC connection from the first query until the response is written, including serialisation and any remote call made after the first query. A slow request holds a pool connection for its whole length, the same pool-exhaustion failure as #2, on every endpoint. It isn't a transaction, but it holds the connection like one.
+- Lazy associations can be loaded silently from the controller/serialiser, hiding N+1 queries until production. No lazy associations today, so no current bug there.
+- Boot logs a warning about it at every startup.
 
-**Fix direction:** `spring.jpa.open-in-view=false` in all three; run the tests.
+**Fix direction:** `spring.jpa.open-in-view=false` in all three; run the tests. With #30 (no `@Transactional`), each repository call opens and closes its own session, so once this is off, no code path holds a connection longer than one query. Verify with #29's `leak-detection-threshold`.
 
 **Understand first:** `OpenEntityManagerInViewInterceptor`, and what `LazyInitializationException` tells you once it's off.
 
@@ -447,4 +461,113 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 
 **Fix direction:** Likely shape: (1) enforcement = step 4 binding published ports to `127.0.0.1` (T40 is step 3); (2) a CI check that fails when a non-dev profile names a non-localhost issuer or base URL over plain HTTP, or similar; (3) step 3 note: container-to-container traffic on the compose network is still plain HTTP, and who can sniff it. Because ADR-0014 is `Accepted`, items that change the decision go in a new ADR that supersedes it; Verification and trigger lines can be added in place.
 
-**When done:** delete this section; ADR-0014 review record → re-review row.
+**When done:** mark it `Done`; ADR-0014 review record → re-review row.
+
+## 29 — MINOR — SB-CFG — HikariCP not configured: defaults everywhere, 30 s connection wait (added 2026-11-08)
+
+**Status:** Done 2026-11-14, commit `97b7dca` on `review-findings` (with #4). Each service: `pool-name=<service>-pool`, `maximum-pool-size=5`, `minimum-idle=2`, `connection-timeout=3000`, `leak-detection-threshold=2000`; a pool timeout answers `503` + `Retry-After: 1` (`PoolTimeoutTest.exhaustedPoolAnswers503`), tests `<Service>ApplicationTests.poolIsConfigured`. Values and reasons: `docs/development.md` → Database connections. Follow-up: #31 (an outage also reads as "busy").
+
+**Where:** `application.properties` of order-service, product-service, user-service (no `spring.datasource.hikari.*` property anywhere)
+
+**What:** Every service runs Hikari's defaults: `maximum-pool-size` 10, `minimum-idle` = pool size, `connection-timeout` 30 s, `idle-timeout` 10 min, `max-lifetime` 30 min, `leak-detection-threshold` off, pool name `HikariPool-1` in all three.
+
+**Why it matters:**
+- A request that can't get a connection waits up to 30 s before failing. With 2 s + 3 s timeouts on the Product call, a 30 s pool wait is the slowest part of any outage, and it ties up a web thread the whole time
+- Nothing reports a connection held too long, so #2- and #4-type holds stay invisible
+- Logs and metrics can't tell the three pools apart
+
+**Fix direction:** Per service, in `application.properties`:
+- `spring.datasource.hikari.pool-name=<service>-pool`
+- `maximum-pool-size`: small and explicit (start at 5; 3 services × 5 stays far under Postgres' default `max_connections` of 100, and step 2's per-service roles can add a `CONNECTION LIMIT` to match)
+- `minimum-idle` lower than the max (e.g. 2) for a laptop
+- `connection-timeout=3000` (fail fast, answer `503`)
+- `leak-detection-threshold=2000` in dev (logs a stack trace for any connection held over 2 s)
+- `max-lifetime` below any network or Postgres idle cut-off (keep the 30 min default unless one exists)
+- Map `SQLTransientConnectionException` (pool timeout) to `503` in each service's error handler, not `500`
+
+**Understand first:** why a smaller pool is often faster (HikariCP "About Pool Sizing"); what the leak detection log shows and why it isn't a leak by itself; how `connection-timeout` interacts with the web server's thread pool.
+
+**When done:** note the values in `docs/development.md`; #4 and #30 use the leak detection log as their check.
+
+## 30 — MAJOR — SB-JPA — Decision: no `@Transactional`; failures recorded as state, not rolled back (added 2026-11-08)
+
+**Where:** `OrderService` (class-level `@Transactional`, two `readOnly`), `ProductService` (class-level, two `readOnly`), `ProfileService` (`getBySub` `readOnly`, `update`); every future service class
+
+**What (the decision, by Fahim):** Services don't use `@Transactional`. Each repository call runs in its own short transaction and returns its connection at once. Instead of rolling back, a failed operation leaves a record: the row carries a status (e.g. `PENDING` → `CONFIRMED` / `FAILED`) with the reason and time, and the failure is logged with enough context (ids, the failing dependency) to follow it. Error handling maps each failure to a clear response.
+
+**Why:**
+- `@Transactional` holds a DB connection from the start of the method to the end, including remote calls (#2) and slow code
+- A rollback removes every trace of a failed attempt: nothing shows that an order was tried, what failed, or how often. A status row keeps that history and can be queried
+- It matches the cross-system reality: Keycloak and Product Service calls were never part of a DB transaction anyway (`ProfileService.register` already says so)
+
+**Trade-offs to settle in the ADR:**
+- **Atomicity of multi-row writes is gone.** Today every write is one row, so nothing breaks. A future write that changes two rows in one service (e.g. an order and its lines) would commit them separately; a crash between them leaves half the change. The ADR needs either an explicit exception ("a single local multi-row write may use a transaction with no remote call inside it") or a rule that every partial state has a status that shows it is incomplete
+- **Read consistency:** two reads without a transaction can see different snapshots. Harmless today (single-row reads)
+- **Lost-update protection** still needs optimistic locking (#8); a transaction never provided it
+- **Data model work:** status and reason columns per aggregate (`orders` needs new status values and `failure_reason`; `profiles` needs a status for pending or failed deletes), and a decision on whether failed rows show in list endpoints
+- **Retention:** failure rows grow; decide how long to keep them
+
+**Fix direction:**
+1. ADR first (replaces the "#2 rule: no remote calls inside a DB transaction" ADR planned for step 2): the rule, the exception for local multi-row writes or why there is none, the status model, the logging fields
+2. Remove `@Transactional` from the three services; the readOnly ones go too
+3. Apply the status pattern in #1 (profile delete) and #2 + #22 (order create)
+4. An ArchUnit rule (shared with #21, #23): no class in `..service..` or `..controller..` is annotated with `@Transactional` and no method is, outside the ADR's exception
+5. Verify with #29's `leak-detection-threshold` and #4 off: no connection held over 2 s in any test. Both are in place since `97b7dca` (2026-11-14): every service runs `open-in-view=false` and `leak-detection-threshold=2000`, tests included
+
+**Understand first:** how Spring Data's repository methods run in their own transaction when there is no outer one (`SimpleJpaRepository` is `@Transactional`); why dirty checking needs an explicit `save()` once there's no surrounding transaction; the Saga pattern's "compensate and record" as the general form of this decision.
+
+**Breakdown (2026-11-08):** one task per method, tracked in `Interview-Preparation/tasks/` (`/task-workflow <slug>`): `tx-00-adr-no-transactional` first (the ADR, and class-level `@Transactional` moved onto each method so the parts stay independent), then one task per method: Order `create` (with #2, #22), `getAll`, `getById`, `update`, `delete`; Product `create`, `getAll`, `getById`, `update`, `delete`; Profile `register`, `getBySub`, `update`, `delete` (with #1); `tx-99-archunit-no-transactional` last.
+
+**When done:** ADR in `docs/adr/`; mark it `Done`; #1 and #2 reference the ADR.
+
+---
+
+## 31 — MINOR — SB-API — A DB outage answers 503 "Database busy" and logs at WARN; 500 branch untested (added 2026-11-14)
+
+**Status:** Done 2026-11-14, commit `82e0c92` on `review-findings`. Busy and unreachable both answer `503` "Service temporarily unavailable, try again later" with no database detail or stack trace; the log tells them apart: WARN `DB pool exhausted` (Hikari timeout without a cause) vs. ERROR `DB unreachable` with the cause's stack. Other failures stay `500` "Internal error". Tests: `GlobalExceptionHandlerTest` (busy, unreachable, other; body has only the 4 generic keys) and `PoolTimeoutTest` (no `trace`/`exception`). Manual check with Postgres stopped: `503` generic body after 3.0 s, ERROR with `PSQLException: Connection to localhost:5432 refused`; back to `200` after a restart. Task: `Interview-Preparation/tasks/db-failure-generic-error-log-levels/`.
+
+**Where:** `GlobalExceptionHandler#handleNoTransaction` and `isPoolTimeout` in order-, product- and user-service (added by #29, commit `97b7dca`)
+
+**What:** Hikari throws `SQLTransientConnectionException` for every `getConnection()` that times out. That includes a pool that can't open connections because Postgres is down; then the last connection error is the cause. So an outage after startup gets the same answer as a busy pool: `503` "Database busy, try again", logged at WARN. The handler's Javadoc says an outage "stays a 500", which is wrong. Seen on 2026-11-14 with product-service running and the Postgres container stopped: `GET /products` → `503` after 3.08 s, log `No database connection free within the pool timeout: Connection refused: getsockopt`. Also, no test covers the handler's `500` branch.
+
+**Why it matters:** `503` is a fair answer for an outage. But the message tells the client it's load, and WARN hides an outage among routine saturation warnings. An alert on ERROR would miss it.
+
+**Fix direction:** keep `503`, but split the cases. If the `SQLTransientConnectionException` has a cause (Hikari couldn't connect), log at ERROR and answer "Database unavailable". With no cause, keep "Database busy" at WARN. Fix the Javadoc. Add a test for the `500` branch, e.g. a `CannotCreateTransactionException` whose cause isn't a pool timeout, thrown from a mocked repository. Small; it can ride along with #7 (one error shape) or go before #30.
+
+**Also noted in the same review (not separate findings):**
+- **One WARN per rejected request** under saturation. Hikari's pool metrics (`hikaricp.connections.timeout`) are the better signal: step 6 observability.
+- **`Retry-After: 1` is shorter than the 3 s pool wait.** Clients that honour it would retry in sync while the pool is still full.
+- **Security review, INFO:** the smaller pool (10 → 5) halves the number of concurrent anonymous `GET /products` calls needed to fill it. The 3 s timeout bounds the effect; #3 (pagination) and rate limiting (step 6) are the real fixes.
+
+---
+
+## 32 — MINOR — GEN-DEP — Testcontainers version override in 3 POMs; remove when the Boot parent is >= 3.5.16 (added 2026-11-14)
+
+**Where:** `backend/order-service/pom.xml`, `backend/product-service/pom.xml`, `backend/user-service/pom.xml`: `<testcontainers.version>1.21.4</testcontainers.version>` in `<properties>`, with a comment pointing here (commit `0cbbb6b`)
+
+**What:** Spring Boot 3.5.5 manages Testcontainers 1.21.3. Its Docker client asks for API 1.32, and the `ubuntu-latest` runner's Docker now requires 1.40, so every integration test on PR #8 failed to start Postgres (`client version 1.32 is too old. Minimum supported API version is 1.40`). The three POMs override the version to 1.21.4 ("makes version 1.21.x work with recent Docker Engine changes"; it is managed by Boot 3.5.16). PR #8 went green with it (2026-11-14, `0cbbb6b` and `82e0c92`).
+
+**Why it matters:** the override keeps pinning 1.21.4 after a Boot bump, silently ignoring the newer Testcontainers that later Boot versions bring. It is a test-scope pin that is easy to forget.
+
+**Fix direction:** when the parent moves to Boot ≥ 3.5.16, delete the property and its comment in all three POMs. Check that `./mvnw dependency:tree -Dincludes=org.testcontainers` shows the Boot-managed version (≥ 1.21.4) and that `verify` passes on CI.
+
+**When done:** mark it `Done`. Task: `Interview-Preparation/tasks/ci-testcontainers-docker-api/`.
+
+---
+
+## 33 — MINOR — GEN-OBS — No correlation ID in error responses: a generic client error can't be matched to its log line (added 2026-11-14)
+
+**Where:** every service's `GlobalExceptionHandler.body()` (order, product, user), and the Gateway's error responses. The body is `timestamp`, `status`, `error` and `message`, with no request or trace ID. No MDC request ID in the log pattern either.
+
+**What:** since #31, a database failure answers the same generic `503` "Service temporarily unavailable, try again later" whether the pool is busy or the database is down, and only the log tells them apart (WARN `DB pool exhausted` vs. ERROR `DB unreachable`). That's deliberate (CWE-209). But when a customer reports an error, support has nothing to look up: no ID links the client's response to the server's log line. They can only search by time, which fails under load and across replicas.
+
+**Why it matters:** generic client errors are only safe to keep if the server side stays easy to debug. Without a correlation ID, hiding the detail costs real support time. Found in the #31 interview drill (`Interview-Preparation/tasks/completed/db-failure-generic-error-log-levels/drill.md`, Q1).
+
+**Fix direction:**
+- Generate or accept a request ID at the Gateway (`X-Request-Id`, or the W3C `traceparent` trace ID once step 6 adds tracing) and forward it to the services.
+- Put it in the MDC so every log line carries it.
+- Return it in every error body, e.g. `instance` or a `traceId` extension in an RFC 9457 `ProblemDetail`.
+
+Do it with #7 (one error format), which reshapes the body anyway. The ID is safe to expose; it carries no internal detail.
+
+**Understand first:** Micrometer Tracing (Boot 3) puts `traceId`/`spanId` in the MDC automatically. `ProblemDetail`'s `instance` field vs. a custom property. Trust: never accept a client-supplied ID without validating its format (log injection).
