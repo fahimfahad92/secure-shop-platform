@@ -45,6 +45,7 @@ Review working file, tracked in git (since 2026-11-01) so it moves between devic
 | 30 | MAJOR | SB-JPA | Decision: no `@Transactional`; failures recorded as state, not rolled back | order, product, user | Open |
 | 31 | MINOR | SB-API | A DB outage answers 503 "Database busy" and logs at WARN; 500 branch untested | order, product, user | Done 2026-11-14 (`82e0c92`) |
 | 32 | MINOR | GEN-DEP | Testcontainers version override in 3 POMs; remove when the Boot parent is >= 3.5.16 | order, product, user | Open |
+| 33 | MINOR | GEN-OBS | No correlation ID in error responses: a generic client error can't be matched to its log line | order, product, user, gateway | Open |
 
 Suggested order (changed 2026-11-14: #4 + #29 moved first, so the #30 ADR has its precondition and its check in place): ~~4 + 29 (config)~~ done → 30 (ADR first: it sets the direction for 1, 2, 22) → 1 → 2 + 22 (both in `OrderService.create` and the Product call), 3 → 5, 6 → 7, 8 → 9, 10, 12 → 11, 13 → tests 15, 16, 17, 23, 25 → realm 24 + 26 → 18, 19, 20, 21 → docs 27, 28 (design calls; 14 belongs to project #04).
 
@@ -551,3 +552,22 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 **Fix direction:** when the parent moves to Boot ≥ 3.5.16, delete the property and its comment in all three POMs. Check that `./mvnw dependency:tree -Dincludes=org.testcontainers` shows the Boot-managed version (≥ 1.21.4) and that `verify` passes on CI.
 
 **When done:** mark it `Done`. Task: `Interview-Preparation/tasks/ci-testcontainers-docker-api/`.
+
+---
+
+## 33 — MINOR — GEN-OBS — No correlation ID in error responses: a generic client error can't be matched to its log line (added 2026-11-14)
+
+**Where:** every service's `GlobalExceptionHandler.body()` (order, product, user), and the Gateway's error responses. The body is `timestamp`, `status`, `error` and `message`, with no request or trace ID. No MDC request ID in the log pattern either.
+
+**What:** since #31, a database failure answers the same generic `503` "Service temporarily unavailable, try again later" whether the pool is busy or the database is down, and only the log tells them apart (WARN `DB pool exhausted` vs. ERROR `DB unreachable`). That's deliberate (CWE-209). But when a customer reports an error, support has nothing to look up: no ID links the client's response to the server's log line. They can only search by time, which fails under load and across replicas.
+
+**Why it matters:** generic client errors are only safe to keep if the server side stays easy to debug. Without a correlation ID, hiding the detail costs real support time. Found in the #31 interview drill (`Interview-Preparation/tasks/completed/db-failure-generic-error-log-levels/drill.md`, Q1).
+
+**Fix direction:**
+- Generate or accept a request ID at the Gateway (`X-Request-Id`, or the W3C `traceparent` trace ID once step 6 adds tracing) and forward it to the services.
+- Put it in the MDC so every log line carries it.
+- Return it in every error body, e.g. `instance` or a `traceId` extension in an RFC 9457 `ProblemDetail`.
+
+Do it with #7 (one error format), which reshapes the body anyway. The ID is safe to expose; it carries no internal detail.
+
+**Understand first:** Micrometer Tracing (Boot 3) puts `traceId`/`spanId` in the MDC automatically. `ProblemDetail`'s `instance` field vs. a custom property. Trust: never accept a client-supplied ID without validating its format (log injection).
