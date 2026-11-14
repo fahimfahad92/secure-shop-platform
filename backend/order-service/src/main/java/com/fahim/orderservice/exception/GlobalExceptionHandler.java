@@ -65,34 +65,52 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * No transaction could start. A pool timeout (every connection busy for longer than {@code
-     * spring.datasource.hikari.connection-timeout}) is load, so it is a {@code 503} the client can
-     * retry; anything else (Postgres down, wrong credentials) is a fault and stays a {@code 500}.
-     * Neither answer exposes pool or SQL details. Finding #29.
+     * No transaction could start. The client gets a generic answer that never names the database,
+     * the pool or an exception, and never carries a stack trace; developers tell the cases apart by
+     * the log level (finding #31):
+     *
+     * <ul>
+     *   <li>Pool timeout with no cause: every connection was busy for longer than {@code
+     *       spring.datasource.hikari.connection-timeout}. Load: WARN, message only, {@code 503}.
+     *   <li>Pool timeout with a cause: Hikari attaches the last failure to open a connection, so
+     *       the database is unreachable. Outage: ERROR with the cause's stack, the same {@code
+     *       503}. Right after a short blip the old cause can linger until Hikari reconnects, so a
+     *       busy timeout may then log at ERROR; that errs towards telling developers.
+     *   <li>Anything else: ERROR with the stack, {@code 500}.
+     * </ul>
+     *
+     * Both {@code 503} cases look the same to the client on purpose: its next move is the same
+     * (retry later), and the difference is an internal detail.
      */
     @ExceptionHandler(CannotCreateTransactionException.class)
     public ResponseEntity<Map<String, Object>> handleNoTransaction(
             CannotCreateTransactionException ex) {
-        if (isPoolTimeout(ex)) {
-            log.warn(
-                    "No database connection free within the pool timeout: {}",
-                    ex.getMostSpecificCause().getMessage());
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .header(HttpHeaders.RETRY_AFTER, "1")
-                    .body(body(HttpStatus.SERVICE_UNAVAILABLE, "Database busy, try again"));
+        SQLTransientConnectionException poolTimeout = findPoolTimeout(ex);
+        if (poolTimeout == null) {
+            log.error("Could not open a database transaction", ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(body(HttpStatus.INTERNAL_SERVER_ERROR, "Internal error"));
         }
-        log.error("Could not open a database transaction", ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(body(HttpStatus.INTERNAL_SERVER_ERROR, "Internal error"));
+        if (poolTimeout.getCause() == null) {
+            log.warn("DB pool exhausted: {}", poolTimeout.getMessage());
+        } else {
+            log.error("DB unreachable: {}", poolTimeout.getMessage(), poolTimeout.getCause());
+        }
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header(HttpHeaders.RETRY_AFTER, "1")
+                .body(
+                        body(
+                                HttpStatus.SERVICE_UNAVAILABLE,
+                                "Service temporarily unavailable, try again later"));
     }
 
-    private static boolean isPoolTimeout(Throwable ex) {
+    private static SQLTransientConnectionException findPoolTimeout(Throwable ex) {
         for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
-            if (cause instanceof SQLTransientConnectionException) {
-                return true;
+            if (cause instanceof SQLTransientConnectionException poolTimeout) {
+                return poolTimeout;
             }
         }
-        return false;
+        return null;
     }
 
     private Map<String, Object> body(HttpStatus status, String message) {

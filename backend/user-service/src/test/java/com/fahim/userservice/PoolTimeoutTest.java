@@ -44,7 +44,11 @@ class PoolTimeoutTest extends AbstractIntegrationTest {
                     .andExpect(status().isServiceUnavailable())
                     .andExpect(header().string(HttpHeaders.RETRY_AFTER, "1"))
                     .andExpect(jsonPath("$.status").value(503))
-                    .andExpect(jsonPath("$.message").value("Database busy, try again"));
+                    .andExpect(
+                            jsonPath("$.message")
+                                    .value("Service temporarily unavailable, try again later"))
+                    .andExpect(jsonPath("$.trace").doesNotExist())
+                    .andExpect(jsonPath("$.exception").doesNotExist());
         }
     }
 }
