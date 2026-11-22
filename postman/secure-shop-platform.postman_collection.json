@@ -678,7 +678,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"quantity\": 5,\n  \"status\": \"CONFIRMED\"\n}"
+              "raw": "{\n  \"quantity\": 5\n}"
             },
             "url": {
               "raw": "{{orderServiceBaseUrl}}/orders/{{orderId}}",
@@ -688,6 +688,40 @@
               "path": [
                 "orders",
                 "{{orderId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Confirm Order",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/orders/{{orderId}}/confirm",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}",
+                "confirm"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{orderServiceBaseUrl}}/orders/{{orderId}}/cancel",
+              "host": [
+                "{{orderServiceBaseUrl}}"
+              ],
+              "path": [
+                "orders",
+                "{{orderId}}",
+                "cancel"
               ]
             }
           }

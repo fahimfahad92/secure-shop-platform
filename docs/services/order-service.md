@@ -20,7 +20,9 @@ All endpoints work only on the caller's own orders.
 | `POST` | `/orders` | `orders:write` + role `user` | `201` with `Location` |
 | `GET` | `/orders` | `orders:read` + role `user` | `200`, the caller's orders only |
 | `GET` | `/orders/{id}` | `orders:read` + role `user` | `200`, or `404` |
-| `PUT` | `/orders/{id}` | `orders:write` + role `user` | `200`, or `404` |
+| `PUT` | `/orders/{id}` | `orders:write` + role `user` | `200`; `404`; `409` (not `PENDING`, not enough stock, product gone); `503` |
+| `POST` | `/orders/{id}/confirm` | `orders:write` + role `user` | `200`; `404`; `409` (not allowed from the current status) |
+| `POST` | `/orders/{id}/cancel` | `orders:write` + role `user` | `200`; `404`; `409` (not allowed, or the cancel window has closed) |
 | `DELETE` | `/orders/{id}` | `orders:write` + role `user` | `204`, or `404` |
 
 <details>
@@ -32,17 +34,20 @@ Create. There is no price field, on purpose:
 { "productId": 1, "quantity": 2 }
 ```
 
-Update:
+Update. Only the quantity; there is no status field ([ADR-0016](../adr/0016-order-status-changes-only-through-actions.md)):
 
 ```json
-{ "quantity": 3, "status": "CONFIRMED" }
+{ "quantity": 3 }
 ```
+
+Confirm and cancel have no body.
 
 | Field | Rules |
 |---|---|
-| `productId` | Required |
+| `productId` | Required on create |
 | `quantity` | Required, at least 1 |
-| `status` | Required on update. `PENDING`, `CONFIRMED` or `CANCELLED` |
+
+Any other field in a request body is rejected with `400` (for example, an older client still sending `status` to `PUT`).
 
 Response:
 
@@ -120,10 +125,22 @@ Sequence diagram: [architecture.md → Placing an order](../architecture.md#plac
 - Plain HTTP with no credentials. v1 treats the internal network as trusted. `ProductClient` is where service-to-service auth will go (see [Next plans](../architecture.md#next-plans)).
 - Connect timeout 2 s, read timeout 3 s (`product-service.connect-timeout-ms`, `read-timeout-ms`). A timeout becomes `503`.
 - Stock is checked, not reserved or reduced.
-- `PUT` keeps the price stored at creation (`unitPrice`) and recalculates `totalPrice`. It doesn't check stock again.
-- The owner can set any `status` through `PUT`. Status changes are not restricted yet.
 
 </details>
+
+## Changing an order
+
+[ADR-0016](../adr/0016-order-status-changes-only-through-actions.md). A client never sends a status: it changes the quantity, confirms or cancels. Each is one conditional `UPDATE … WHERE <allowed current status>`, so a change in another tab can't be overwritten.
+
+| Current status | `PUT` (quantity) | `POST …/confirm` | `POST …/cancel` |
+|---|---|---|---|
+| `PENDING` | Allowed. Stock is checked again with Product Service; the price from creation is kept | → `CONFIRMED` | → `CANCELLED` |
+| `CONFIRMED` | `409` | `200`, unchanged | → `CANCELLED` within `orders.cancel-window` (30 min) of confirmation, then `409` |
+| `CANCELLED` | `409` | `409` | `200`, unchanged |
+
+- **`PUT` and Product Service:** not enough stock → `409`; the product was removed from the catalog → `409` "product no longer available"; Product Service down → `503`. Nothing is written in any of these cases.
+- **Repeating a confirm or cancel** that already happened returns the order unchanged, so a retry after a lost response is safe.
+- **For now the owner confirms and cancels.** Payment will take this over (#01 v2).
 
 ## Configuration
 
@@ -139,6 +156,8 @@ Sequence diagram: [architecture.md → Placing an order](../architecture.md#plac
 | `spring.security.oauth2.resourceserver.jwt.audiences` | `order-service` |
 | `product-service.base-url` | `http://localhost:8082` |
 | `product-service.connect-timeout-ms` / `read-timeout-ms` | `2000` / `3000` |
+| `orders.cancel-window` | `30m`: how long after confirmation an order can still be cancelled |
+| `spring.jackson.deserialization.fail-on-unknown-properties` | `true`: unknown request fields → `400` |
 
 Flyway migrations:
 
@@ -146,6 +165,7 @@ Flyway migrations:
 |---|---|
 | `V1` | Creates `orders` |
 | `V2` | Deletes all existing rows, adds `user_sub NOT NULL` and an index on it. Rows from before ownership existed had no owner and nothing correct to backfill |
+| `V3` | Adds `status_changed_at NOT NULL` (backfilled from `updated_at`) and an index on `(status, status_changed_at)`: the cancel window and stuck-row detection read it (ADR-0015, 0016) |
 
 No secrets needed.
 
