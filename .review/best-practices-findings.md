@@ -46,6 +46,7 @@ Review working file, tracked in git (since 2026-11-01) so it moves between devic
 | 31 | MINOR | SB-API | A DB outage answers 503 "Database busy" and logs at WARN; 500 branch untested | order, product, user | Done 2026-11-14 (`82e0c92`) |
 | 32 | MINOR | GEN-DEP | Testcontainers version override in 3 POMs; remove when the Boot parent is >= 3.5.16 | order, product, user | Open |
 | 33 | MINOR | GEN-OBS | No correlation ID in error responses: a generic client error can't be matched to its log line | order, product, user, gateway | Open |
+| 34 | MINOR | SB-API | `POST /orders` has no idempotency key: a client retry after a lost response places a second order | order, gateway | Open |
 
 Suggested order (changed 2026-11-14: #4 + #29 moved first, so the #30 ADR has its precondition and its check in place): ~~4 + 29 (config)~~ done → 30 (ADR first: it sets the direction for 1, 2, 22) → 1 → 2 + 22 (both in `OrderService.create` and the Product call), 3 → 5, 6 → 7, 8 → 9, 10, 12 → 11, 13 → tests 15, 16, 17, 23, 25 → realm 24 + 26 → 18, 19, 20, 21 → docs 27, 28 (design calls; 14 belongs to project #04).
 
@@ -674,3 +675,24 @@ Do it with #7 (one error format), which reshapes the body anyway. The ID is safe
 
 </details>
 
+
+<details>
+<summary><b>34 — MINOR — SB-API — <code>POST /orders</code> has no idempotency key: a client retry after a lost response places a second order (added 2026-11-22)</b> · 🔲 Open</summary>
+
+
+**Where:** `OrderController` `POST /orders` → `OrderService#create`. No `Idempotency-Key` header and no unique constraint that would catch a repeated request.
+
+**What:** if the response is lost (a pod is killed after the commit, a timeout at the Gateway, a dropped connection), the customer doesn't know whether the order was placed, and clicking again creates a second, real order. This happens **with or without** `@Transactional`: a rollback covers a crash *before* the commit, not after it. ADR-0015 changes the shape slightly (a crash mid-flight leaves a stuck `CREATING` trace row, not a second placed order), but the double-submit itself stays.
+
+**Why it matters:** duplicate orders, and later duplicate stock reservations once #03 (step 5) adds `reserve-stock`. Retries at the Gateway or in the frontend (step 6 resilience) would make it more likely, not less. Found in the `tx-00` interview drill (`Interview-Preparation/tasks/completed/tx-00-adr-no-transactional/drill.md`, Q1).
+
+**Fix direction:**
+- The client sends an `Idempotency-Key` (a UUID per "Place order" click). Order Service stores it with the order (`UNIQUE (user_sub, idempotency_key)`) and, on a repeat, returns the existing order instead of creating one.
+- A key seen while its order is still `CREATING` answers `409` or `202` ("still processing"), not a second attempt.
+- Keys expire after a window (e.g. 24 h).
+
+Likely together with #01 v2 Phase 7 (API hardening) and the retry-policy ADR listed in `project-ideas/01-oauth2-oidc/requirements.md` (ADR list item 6), since retries are only safe on idempotent calls.
+
+**Understand first:** the IETF `Idempotency-Key` header draft and Stripe's implementation. Why the key must be scoped per user (one user's key must not reveal another's order). Storing the key in the same row as the order: under ADR-0015 there is no transaction, so the `UNIQUE` constraint is what makes it safe.
+
+</details>
