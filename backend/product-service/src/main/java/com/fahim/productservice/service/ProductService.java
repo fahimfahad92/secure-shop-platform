@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional
 public class ProductService {
 
     private final ProductRepository productRepository;
@@ -19,6 +18,7 @@ public class ProductService {
         this.productRepository = productRepository;
     }
 
+    @Transactional
     public Product create(CreateProductRequest request) {
         Product product = new Product();
         product.setName(request.name());
@@ -38,6 +38,7 @@ public class ProductService {
         return productRepository.findById(id).orElseThrow(() -> new ProductNotFoundException(id));
     }
 
+    @Transactional
     public Product update(Long id, UpdateProductRequest request) {
         Product product = getById(id);
         product.setName(request.name());
@@ -47,6 +48,7 @@ public class ProductService {
         return productRepository.save(product);
     }
 
+    @Transactional
     public void delete(Long id) {
         Product product = getById(id);
         productRepository.delete(product);

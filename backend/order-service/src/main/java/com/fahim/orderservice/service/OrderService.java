@@ -18,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
  * to be the token of the user who owns the order.
  */
 @Service
-@Transactional
 public class OrderService {
 
     private final OrderRepository orderRepository;
@@ -29,6 +28,7 @@ public class OrderService {
         this.productClient = productClient;
     }
 
+    @Transactional
     public Order create(String userSub, CreateOrderRequest request) {
         ProductSnapshot product = productClient.fetchProduct(request.productId());
         if (product.stock() < request.quantity()) {
@@ -57,6 +57,7 @@ public class OrderService {
                 .orElseThrow(() -> new OrderNotFoundException(id));
     }
 
+    @Transactional
     public Order update(String userSub, Long id, UpdateOrderRequest request) {
         Order order = getById(userSub, id);
         order.setQuantity(request.quantity());
@@ -65,6 +66,7 @@ public class OrderService {
         return orderRepository.save(order);
     }
 
+    @Transactional
     public void delete(String userSub, Long id) {
         Order order = getById(userSub, id);
         orderRepository.delete(order);

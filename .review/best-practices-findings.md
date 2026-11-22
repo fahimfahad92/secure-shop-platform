@@ -61,6 +61,8 @@ Suggested order (changed 2026-11-14: #4 + #29 moved first, so the #30 ADR has it
 
 **Why it matters:** Keycloak down or returns 5xx → profile row is gone, Keycloak user still exists. User can still log in, but `GET /users/me` returns 404 forever and re-registering fails with 409 (username taken in Keycloak). Existing test `delete_removesProfileThenKeycloakUser` only covers the happy path with mocks, so it can't catch this.
 
+**Decided by:** [ADR-0015](../docs/adr/0015-no-transactional-failures-recorded-as-state.md) (Proposed, 2026-11-22): no `@Transactional`, failures recorded as state. Fixed in task `tx-profile-delete`.
+
 **Fix direction (revised 2026-11-08, follows #30: no `@Transactional`, failures recorded as state):** Mark the profile `DELETE_PENDING` (own commit), call Keycloak `deleteUser`, then delete the row. Keycloak fails → set `DELETE_FAILED` with the error and time, return `503`; the row and the account stay, the user can retry (`deleteUser` already treats `404` as done, so a retry is safe). Keycloak succeeds, row delete fails → the row stays `DELETE_PENDING` with no login behind it; log loudly with the `sub`, the same way `register()` logs an orphan. Tests: `deleteUser` throws → row `DELETE_FAILED`, account untouched; row delete fails → `DELETE_PENDING` and the log line; happy path → row gone. Rewrite the Javadoc ("the one we can roll back by simply failing" is false). `GET /users/me` on a `DELETE_PENDING`/`DELETE_FAILED` row: decide whether it reads as `404` or shows the status.
 
 Rejected (original direction): `@Transactional` + `flush()` before the Keycloak call. It rolls the profile back on a Keycloak failure, but holds a DB connection and the row lock for the whole Keycloak call (#2's problem) and leaves no record that a delete failed (#30).
@@ -82,6 +84,8 @@ Rejected (original direction): `@Transactional` + `flush()` before the Keycloak 
 **What:** `create()` inherits the class-level `@Transactional`. `JpaTransactionManager` takes a DB connection from the pool when the transaction starts, then the method makes an HTTP call to Product Service while holding it.
 
 **Why it matters:** Product Service timeouts are 2s connect + 3s read, so one slow call holds a connection up to ~5s. Hikari's default pool is 10. Ten concurrent orders against a slow Product Service exhaust the pool, and then *every* DB operation in order-service waits, including `GET /orders`, which doesn't touch Product Service at all. One slow dependency takes down unrelated endpoints.
+
+**Decided by:** [ADR-0015](../docs/adr/0015-no-transactional-failures-recorded-as-state.md) (Proposed, 2026-11-22); it replaces the ADR planned for this finding. Failed orders are listed with their status in `GET /orders`. The order starts as `CREATING` (in-flight, system-owned), not as the business `PENDING`; "save the order first as `PENDING`" below now reads `CREATING`. Fixed in task `tx-order-create` (with #22).
 
 **Fix direction (revised 2026-11-08, follows #30):** Remove the class-level `@Transactional` from `OrderService` (and the `readOnly` ones). In `create()`, save the order first as `PENDING` (own commit, connection returned), then call Product Service with no connection held, then update it: `CONFIRMED` with the price, or a failure status (`REJECTED` for unknown product or not enough stock, `FAILED` for Product Service unavailable) with the reason and time. The API answers stay `400`/`409`/`503`, but every failed attempt now leaves a row. Do it together with #22 (reply validation is one more failure reason). Needs a migration: new status values (the `CHECK` on `status` lists only `PENDING`, `CONFIRMED`, `CANCELLED`) and a `failure_reason` column. Decide how failed orders show in `GET /orders` (hidden, or listed with their status).
 
@@ -605,6 +609,8 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 **Understand first:** how Spring Data's repository methods run in their own transaction when there is no outer one (`SimpleJpaRepository` is `@Transactional`); why dirty checking needs an explicit `save()` once there's no surrounding transaction; the Saga pattern's "compensate and record" as the general form of this decision.
 
 **Breakdown (2026-11-08):** one task per method, tracked in `Interview-Preparation/tasks/` (`/task-workflow <slug>`): `tx-00-adr-no-transactional` first (the ADR, and class-level `@Transactional` moved onto each method so the parts stay independent), then one task per method: Order `create` (with #2, #22), `getAll`, `getById`, `update`, `delete`; Product `create`, `getAll`, `getById`, `update`, `delete`; Profile `register`, `getBySub`, `update`, `delete` (with #1); `tx-99-archunit-no-transactional` last.
+
+**Progress (2026-11-22, `tx-00`):** [ADR-0015](../docs/adr/0015-no-transactional-failures-recorded-as-state.md) drafted, `Proposed`. Option B: no exception at all, `readOnly` included. Failed rows are listed with their status and kept; orders start in a separate in-flight value (`CREATING`, not the business `PENDING`), and stuck in-flight rows are detected, not reaped. #1 and #2 now point to it. The class-level `@Transactional` on `OrderService` and `ProductService` has moved onto each write method, with no behaviour change. Stays Open until `tx-99`.
 
 **When done:** ADR in `docs/adr/`; mark it `Done`; #1 and #2 reference the ADR.
 
