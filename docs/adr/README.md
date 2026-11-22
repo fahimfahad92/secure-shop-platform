@@ -24,6 +24,7 @@ Target: 8/10
 | [0013](0013-accept-unencrypted-pii-at-rest.md) | Accepted risk: profile PII unencrypted at rest (T33) | security | normal | Accepted | 9.5 | 1 (#05) |
 | [0014](0014-accept-no-tls-local-rnd.md) | Accepted risk: no TLS on any flow, local R&D only (T1, T37, T38, T39) | security | high | Accepted (override) | 8.5 | 1 (#05) |
 | [0015](0015-no-transactional-failures-recorded-as-state.md) | No `@Transactional`; failures recorded as state | architecture | high | Proposed | 9 | 2 (review findings) |
+| [0016](0016-order-status-changes-only-through-actions.md) | Order status changes only through actions; transitions are conditional updates | architecture | normal | Proposed | — | 2 (review findings) |
 
 0001 to 0011 are retroactive: they record decisions #01 v1 already made. 0012 to 0014 accept risks from the [threat model](../threat-model/risk-register.md).
 

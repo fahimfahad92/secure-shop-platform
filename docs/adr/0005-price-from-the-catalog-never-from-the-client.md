@@ -74,7 +74,8 @@ The create-order request has no price field: Order Service looks the price up in
 
 ## Verification
 
-- `OrderProductLookupTest.createOrder_pricesFromProductServiceAndIgnoresClientSuppliedPrice` (sends a `price` field and asserts it is ignored)
+- `OrderProductLookupTest.createOrder_pricesFromProductService` (the price in the response is the catalog price)
+- `OrderProductLookupTest.createOrder_clientSuppliedPrice_returns400AndCreatesNothing` (a price field in the request is refused, not ignored: unknown request fields fail since [0016](0016-order-status-changes-only-through-actions.md), 2026-11-22)
 - `OrderServiceTest.create_stampsTheCallersSubAndPricesFromProductService`
 - `OrderServiceTest.update_recalculatesTotalPriceAndUpdatesStatus`
 - `OrderServiceTest.create_unknownProduct_propagatesAndPersistsNothing`

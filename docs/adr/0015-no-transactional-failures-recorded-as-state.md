@@ -30,7 +30,7 @@ What a local transaction protects today: every write method does exactly one wri
 
 The planned failure-as-state flows add a second write, and it must be a separate commit: `INSERT … CREATING`, then the remote call, then `UPDATE` to the outcome (`tx-order-create`); `UPDATE … DELETE_PENDING`, then Keycloak, then `DELETE` (`tx-profile-delete`). The first commit is the failure record, so it must survive the failure.
 
-`PENDING` is already taken. It is a business state: every new order starts in it (`Order.java:55`), the `orders.status` `CHECK` allows it, and the owner can set it through `PUT /orders/{id}` (`UpdateOrderRequest`; client-settable status is a known gap, `docs/architecture.md` → Next plans). The "operation in flight" marker therefore needs its own value.
+`PENDING` is already taken. It is a business state: every new order starts in it (`Order.java:55`), the `orders.status` `CHECK` allows it, and until ADR-0016 the owner could set it through `PUT /orders/{id}`. The "operation in flight" marker therefore needs its own value.
 
 Should services keep using Spring's declarative transactions, or should each repository call commit on its own, with failures recorded in the data?
 
@@ -70,7 +70,7 @@ Should services keep using Spring's declarative transactions, or should each rep
   | **Business lifecycle** | The aggregate's normal states, unchanged by this ADR | Order `PENDING` → `CONFIRMED` / `CANCELLED` | As today |
 
   - **No in-flight value reuses a business value.** In particular, an order is `CREATING` until Product Service has answered; only then does it become `PENDING` (placed, as today), `REJECTED` or `FAILED`.
-  - **In-flight and outcome values are system-owned.** No client request can set them, and no client request can move a row out of an in-flight value. `tx-order-update` has to reject them in `PUT /orders/{id}`, as the first step of the client-settable-status gap.
+  - **In-flight and outcome values are system-owned.** No client request can set them, and no client request can move a row out of an in-flight value. Since [0016](0016-order-status-changes-only-through-actions.md) no request carries a status at all: status changes only through confirm and cancel, each a conditional update whose allowed source states never include an in-flight or outcome value.
   - **Order outcome values are terminal.** Once an order is `FAILED` or `REJECTED`, nothing updates it again, neither a client request nor the code. A retry is a new attempt and a new row.
   - **The one retryable outcome is profile `DELETE_FAILED`.** The profile still exists and there is one per user (`username` is `UNIQUE`), so a retry can't be a new row. A new delete request moves the same row back to `DELETE_PENDING`, and the previous `failure_reason` is logged before it is overwritten. This keeps the failure history intact and keeps code like `OrderService.update` (`getUnitPrice().multiply(...)`) away from rows that may have no price.
   - **Order prices are nullable only before pricing.** A `CREATING` row is inserted before Product Service has answered, so `unit_price` and `total_price` become nullable. A `CHECK` keeps the invariant that 0005 relies on, that a placed order always has a catalog price:
@@ -119,7 +119,7 @@ Our services don't use `@Transactional`. Each repository call commits on its own
   - `spring.datasource.hikari.leak-detection-threshold=2000` in every service's `application.properties`, so a connection held for over 2 s logs a leak warning, in tests too
 - Planned, in the per-method tasks of finding #30:
   - each removes one annotation and adds the tests for its status rows (for example, a failed order leaves a `FAILED` / `REJECTED` row, and a successful create ends in `PENDING`, never left in `CREATING`)
-  - `tx-order-update`: `PUT /orders/{id}` with a system-owned status (`CREATING`, `FAILED`, `REJECTED`) is refused, and so is any `PUT` on an order that is already `FAILED` or `REJECTED`
+  - ADR-0016 (`tx-order-update`): no request carries a status (`OrderStatusTransitionsTest.put_withStatusField_returns400`); `PUT`, confirm and cancel change only `PENDING` / `CONFIRMED` rows (`put_onConfirmedOrder_returns409AndLeavesItUnchanged`); refusals of `CREATING` / `FAILED` / `REJECTED` are tested in `tx-order-create`
   - `tx-order-create`: a migration test that inserting a `PENDING` or `CONFIRMED` order with a `NULL` price violates the `CHECK`
   - `tx-99-archunit-no-transactional` adds an ArchUnit rule per service: no class or method in `..service..` or `..controller..` is annotated with `@Transactional`
 
@@ -128,7 +128,7 @@ Our services don't use `@Transactional`. Each repository call commits on its own
 ## Migration path
 
 1. Prep: class-level annotations moved onto each method, with no behaviour change (this ADR's PR).
-2. Per method, one task each. **Order `update` lands before or together with Order `create`**: until `PUT` refuses system-owned statuses and terminal rows, a client could overwrite a recorded `FAILED` or `REJECTED`. Order `update` (rejects system-owned statuses and updates to terminal rows), `create` (with #2, #22: `CREATING` first, new statuses, `failure_reason`, `status_changed_at`, nullable `unit_price` / `total_price` with the status-tied `CHECK`), `getAll`, `getById`, `delete`; Product `create`, `getAll`, `getById`, `update`, `delete`; Profile `register`, `getBySub`, `update`, `delete` (with #1: `DELETE_PENDING` / `DELETE_FAILED`).
+2. Per method, one task each. **Order `update` lands before or together with Order `create`**: until no request can set a status, a client could overwrite a recorded `FAILED` or `REJECTED`. Order `update`, `confirm` and `cancel` ([0016](0016-order-status-changes-only-through-actions.md): status only through actions, conditional updates), `create` (with #2, #22: `CREATING` first, new statuses, `failure_reason`, `status_changed_at`, nullable `unit_price` / `total_price` with the status-tied `CHECK`), `getAll`, `getById`, `delete`; Product `create`, `getAll`, `getById`, `update`, `delete`; Profile `register`, `getBySub`, `update`, `delete` (with #1: `DELETE_PENDING` / `DELETE_FAILED`).
 3. `tx-99`: the ArchUnit rule, after which finding #30 is closed.
 
 Reversal: put the annotations back. The status columns stay useful either way. Restoring `NOT NULL` on `unit_price` / `total_price` needs one data step first: delete the unpriced `CREATING` / `FAILED` / `REJECTED` rows, or move them to an archive table.
@@ -145,6 +145,7 @@ Reversal: put the annotations back. The status columns stay useful either way. R
 - [0003](0003-gateway-checks-session-services-enforce-rules.md), [0004](0004-owner-from-token-sub-404-for-others.md): the RLS migration path (see Negative)
 - [0005](0005-price-from-the-catalog-never-from-the-client.md): the "HTTP call inside the transaction" consequence this ADR makes stale
 - [0008](0008-schema-per-service-on-one-postgres.md): one Postgres, schema per service; the pool limits that T18 is about
+- [0016](0016-order-status-changes-only-through-actions.md): order status changes only through confirm / cancel, as conditional updates; how no request can set a system-owned value
 - Findings #1, #2, #4, #8, #21, #22, #29, #31, #33 in [`.review/best-practices-findings.md`](../../.review/best-practices-findings.md)
 
 ## Review record
