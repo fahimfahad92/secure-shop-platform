@@ -103,7 +103,7 @@ class OrderOwnershipTest extends AbstractIntegrationTest {
         mockMvc.perform(
                         as(put("/orders/" + orderId), OTHER_USER)
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"quantity\":99,\"status\":\"CANCELLED\"}"))
+                                .content("{\"quantity\":99}"))
                 .andExpect(status().isNotFound());
 
         mockMvc.perform(as(get("/orders/" + orderId), OWNER))
@@ -130,10 +130,13 @@ class OrderOwnershipTest extends AbstractIntegrationTest {
         mockMvc.perform(
                         as(put("/orders/" + orderId), OWNER)
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"quantity\":4,\"status\":\"CONFIRMED\"}"))
+                                .content("{\"quantity\":4}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.quantity").value(4))
                 .andExpect(jsonPath("$.totalPrice").value(39.96));
+        mockMvc.perform(as(post("/orders/" + orderId + "/confirm"), OWNER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONFIRMED"));
         mockMvc.perform(as(delete("/orders/" + orderId), OWNER)).andExpect(status().isNoContent());
         mockMvc.perform(as(get("/orders/" + orderId), OWNER)).andExpect(status().isNotFound());
     }

@@ -111,6 +111,28 @@ class OrderControllerSecurityTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void confirm_noToken_returns401() throws Exception {
+        mockMvc.perform(post("/orders/1/confirm")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void cancel_noToken_returns401() throws Exception {
+        mockMvc.perform(post("/orders/1/cancel")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void confirm_readScopeOnly_returns403() throws Exception {
+        mockMvc.perform(post("/orders/1/confirm").with(jwt().authorities(ORDERS_READ, USER_ROLE)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void cancel_readScopeOnly_returns403() throws Exception {
+        mockMvc.perform(post("/orders/1/cancel").with(jwt().authorities(ORDERS_READ, USER_ROLE)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void createOrder_withWriteScopeButNoUserRole_returns403() throws Exception {
         mockMvc.perform(
                         post("/orders")

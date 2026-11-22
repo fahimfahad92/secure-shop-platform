@@ -60,6 +60,21 @@ public class OrderController {
         return OrderResponse.from(orderService.update(jwt.getSubject(), id, request));
     }
 
+    /** {@code PENDING} → {@code CONFIRMED}; repeating it returns the order unchanged. */
+    @PostMapping("/{id}/confirm")
+    public OrderResponse confirm(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        return OrderResponse.from(orderService.confirm(jwt.getSubject(), id));
+    }
+
+    /**
+     * {@code PENDING}, or {@code CONFIRMED} within {@code orders.cancel-window}, → {@code
+     * CANCELLED}; repeating it returns the order unchanged.
+     */
+    @PostMapping("/{id}/cancel")
+    public OrderResponse cancel(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        return OrderResponse.from(orderService.cancel(jwt.getSubject(), id));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
         orderService.delete(jwt.getSubject(), id);

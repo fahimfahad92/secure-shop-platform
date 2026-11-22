@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -50,6 +51,27 @@ public class GlobalExceptionHandler {
             ProductServiceUnavailableException ex) {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
                 .body(body(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage()));
+    }
+
+    @ExceptionHandler({OrderStateConflictException.class, ProductNoLongerAvailableException.class})
+    public ResponseEntity<Map<String, Object>> handleConflict(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(body(HttpStatus.CONFLICT, ex.getMessage()));
+    }
+
+    /**
+     * Unreadable JSON, or a field the request type doesn't have (an older client still sending
+     * {@code status} to {@code PUT}). The message never echoes the payload.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> handleUnreadable(
+            HttpMessageNotReadableException ex) {
+        log.debug("Unreadable request body: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(
+                        body(
+                                HttpStatus.BAD_REQUEST,
+                                "Malformed request body, or a field this request doesn't accept"));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
