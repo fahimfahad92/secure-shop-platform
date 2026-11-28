@@ -2,6 +2,12 @@
 
 One entry per update, newest first. Format: date, step, what changed, threats added or moved. Rules: [README.md](README.md).
 
+## 2026-11-28 — Step 2: tx-order-update (#30, ADR-0016)
+
+- **T15 → `Verified`**, moved from step 6 to step 2 (#30 needed the status rules before `tx-order-create` adds system-owned statuses). `PUT /orders/{id}` takes the quantity only and re-checks stock; status changes only through `POST /orders/{id}/confirm` and `/cancel`, each a conditional `UPDATE … WHERE <allowed status>`; unknown request fields → 400. Commits `80b9880`…`3f03998` on `review-findings`. Tests: `OrderStatusTransitionsTest` (status field refused, above stock, confirmed order, concurrent cancel, closed cancel window). Residual 10 Medium: the owner still confirms their own order until payment exists (#01 v2).
+- T14's evidence renamed (the price test split in two: a client price is now refused with 400, not ignored).
+- No threats added. Thirteen High.
+
 ## 2026-11-14 — Step 2: findings #4 + #29 (OSIV off, Hikari config)
 
 - **T18, Control today extended, still `Open`:** `open-in-view=false` and an explicit pool (5 connections, 3 s `connection-timeout` → `503`, 2 s leak detection) in order-, product- and user-service, commit `97b7dca` on `review-findings`. A drained pool now fails waiting requests in 3 s with a `503` instead of stalling them for 30 s. The cause stays: the Product call still runs inside the transaction (#2, fixed with #30 in `tx-order-create`). The threat text now says 5 concurrent orders, matching the smaller pool. Not re-scored.

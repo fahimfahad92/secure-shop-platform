@@ -125,3 +125,4 @@ Done in one change: V3 (`status_changed_at`, backfilled from `updated_at`), the 
 
 | Round | Date | Reviewer | Score | Verdict |
 |---|---|---|---|---|
+| 1 | 2026-11-28 | architecture-kata-reviewer | 8/10 | ACCEPT |
