@@ -146,7 +146,7 @@ Reversal: put the annotations back. The status columns stay useful either way. R
 - [0005](0005-price-from-the-catalog-never-from-the-client.md): the "HTTP call inside the transaction" consequence this ADR makes stale
 - [0008](0008-schema-per-service-on-one-postgres.md): one Postgres, schema per service; the pool limits that T18 is about
 - [0016](0016-order-status-changes-only-through-actions.md): order status changes only through confirm / cancel, as conditional updates; how no request can set a system-owned value
-- Findings #1, #2, #4, #8, #21, #22, #29, #31, #33 in [`.review/best-practices-findings.md`](../../.review/best-practices-findings.md)
+- Findings #1, #2, #4, #8, #21, #22, #29, #31, #33 in [`.review/best-practice-findings/README.md`](../../.review/best-practice-findings/README.md)
 
 ## Review record
 

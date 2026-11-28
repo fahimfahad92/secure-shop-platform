@@ -77,7 +77,7 @@ Decided here, implemented in step 2 of the build sequence, after #05. Not in Ver
 4. **Cross-user ownership test** in Order and User Service: seed data for user A, call every owner-scoped route as user B, assert A's data never appears
 5. **`deleteMyProfile_noToken_returns401`** in `UserControllerSecurityTest`
 
-Tracked as step 2 review findings #18 (items 1, 5), #19 (item 2) and #20 (items 3, 4) in [`.review/best-practices-findings.md`](../../.review/best-practices-findings.md). Ownership backstop beyond tests: Postgres row-level security on `user_sub`, already the migration path in [0004](0004-owner-from-token-sub-404-for-others.md). It needs `SET LOCAL` of the caller's `sub` per transaction, because connections are pooled.
+Tracked as step 2 review findings #18 (items 1, 5), #19 (item 2) and #20 (items 3, 4) in [`.review/best-practice-findings/README.md`](../../.review/best-practice-findings/README.md). Ownership backstop beyond tests: Postgres row-level security on `user_sub`, already the migration path in [0004](0004-owner-from-token-sub-404-for-others.md). It needs `SET LOCAL` of the caller's `sub` per transaction, because connections are pooled.
 
 ## One-minute answer
 

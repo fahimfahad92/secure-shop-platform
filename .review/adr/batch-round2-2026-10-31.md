@@ -4,7 +4,7 @@
 - Reviewer: architecture-kata-reviewer (ADR mode)
 - Branch: `threat-model` @ `f658d41` plus the uncommitted revision of `docs/adr/0001-keycloak-as-the-only-authorization-server.md` (`git diff`: 27 insertions, 10 deletions)
 - Pass mark 7/10, target 8/10 (from `docs/adr/README.md`)
-- Independence: this session did not draft or edit ADR-0001 and did not run the 2026-10-31 defense drill. `.review/adr-review-round1-2026-10-24.md` was read only to compute deltas, as requested. The score below comes from the current text alone.
+- Independence: this session did not draft or edit ADR-0001 and did not run the 2026-10-31 defense drill. `.review/adr/batch-round1-2026-10-24.md` was read only to compute deltas, as requested. The score below comes from the current text alone.
 - Fact-check: verified against `docker/docker-compose.yml`, `docker/keycloak/secure-shop-realm.json`, every `application.properties` under `backend/`, the Java sources under `backend/*/src/main`, the three `AbstractIntegrationTest`s, `docs/threat-model/risk-register.md`, ADR-0012, `.github/` and `docs/`. Not verifiable from the repo: Keycloak's Argon2 default and its CNCF status (both are true of upstream Keycloak 26 as far as this reviewer knows, and the decision doesn't depend on them).
 
 ## ADR 0001 — Keycloak as the only Authorization Server — 8.0/10 — ACCEPT PENDING DEFENSE

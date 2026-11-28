@@ -59,7 +59,7 @@ Decided here, implemented in step 2 of the build sequence. Not in Verification u
 2. **ArchUnit rules** (`OwnershipArchitectureTest` in each service, run by `mvn verify` in CI): every query method declared on `OrderRepository` takes a `String userSub` parameter, and every query method on `ProfileRepository` takes the `sub` as its id, with `save` and `delete` the only exceptions; neither repository may extend `CrudRepository` or `JpaRepository` again; only `..service..` classes may use `..repository..`. They catch derived and `@Query` methods without an owner and a widened interface. They check signatures only, not whether the JPQL uses the parameter
 3. **Cross-user ownership test** (already item 4 in [0003](0003-gateway-checks-session-services-enforce-rules.md)): seed data for user A, call every `/orders` and `/users/me` route as user B, assert A's data never appears. It catches a `userSub` parameter that a query takes but ignores
 
-Tracked as step 2 review findings #21 (items 1, 2) and #20 (item 3) in [`.review/best-practices-findings.md`](../../.review/best-practices-findings.md).
+Tracked as step 2 review findings #21 (items 1, 2) and #20 (item 3) in [`.review/best-practice-findings/README.md`](../../.review/best-practice-findings/README.md).
 
 ## One-minute answer
 
@@ -111,4 +111,4 @@ Review date: 2027-10-24.
 | 2 | 2026-11-02 | architecture-kata-reviewer | 7.5/10 | ACCEPT (below target) |
 | 3 | 2026-11-02 | architecture-kata-reviewer (same session as round 2 review; confirm in a fresh session) | 9.5/10 | ACCEPT |
 
-Revised after round 2: inherited `JpaRepository` methods stated as residual risk, three-layer guard scheduled for step 2 (#20, #21), framework-filter option and UUID line added, `/users/me` line corrected, T24 dropped, review date added. Round 2 and 3 reports: `.review/adr-review-round2-0004-2026-11-02.md`, `.review/adr-review-round3-0004-2026-11-02.md`.
+Revised after round 2: inherited `JpaRepository` methods stated as residual risk, three-layer guard scheduled for step 2 (#20, #21), framework-filter option and UUID line added, `/users/me` line corrected, T24 dropped, review date added. Round 2 and 3 reports: `.review/adr/0004-round2-2026-11-02.md`, `.review/adr/0004-round3-2026-11-02.md`.

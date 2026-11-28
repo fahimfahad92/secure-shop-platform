@@ -71,7 +71,7 @@ Built in v1 (phases 0–4), then hardened step by step before the frontend. The 
 | Phase 3 | Done | User Service, registration, orders scoped to their owner |
 | Phase 4 | Done | Cleaner Keycloak model (realm roles, audience per service, realm as code), API Gateway (BFF) |
 | Step 1 | Done | Threat model ([docs/threat-model](docs/threat-model/README.md)) and ADR-0001 to 0014 ([docs/adr](docs/adr/README.md)) |
-| Step 2 | In progress | Review findings ([.review/best-practices-findings.md](.review/best-practices-findings.md)): 34 findings, 3 done. Under way: no `@Transactional`, failures recorded as row status (#30, ADR-0015), one task per service method. Order status now changes only through confirm / cancel (ADR-0016) |
+| Step 2 | In progress | Review findings ([.review/best-practice-findings/README.md](.review/best-practice-findings/README.md)): 34 findings, 3 done. Under way: no `@Transactional`, failures recorded as row status (#30, ADR-0015), one task per service method. Order status now changes only through confirm / cancel (ADR-0016) |
 | Step 3 | Planned | DevSecOps pipeline: containerize the services, secret scan, SAST, SCA, image scan (finds only) |
 | Step 4 | Planned | Container and app hardening: fixes what step 3 found, plus Actuator, headers, secrets |
 | Step 5 | Planned | Service-to-service auth: Order → Product with Client Credentials, `reserve-stock`, audience pinning |

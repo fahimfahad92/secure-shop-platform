@@ -119,7 +119,7 @@ Done in one change: V3 (`status_changed_at`, backfilled from `updated_at`), the 
 - [0015](0015-no-transactional-failures-recorded-as-state.md): no `@Transactional`, the status model, system-owned values
 - [0005](0005-price-from-the-catalog-never-from-the-client.md): price from the catalog; `PUT` keeps the creation price
 - [0004](0004-owner-from-token-sub-404-for-others.md): owner from `sub`, 404 for other users' orders
-- T15 in [`risk-register.md`](../threat-model/risk-register.md); findings #8, #30, #34 in [`.review/best-practices-findings.md`](../../.review/best-practices-findings.md)
+- T15 in [`risk-register.md`](../threat-model/risk-register.md); findings #8, #30, #34 in [`.review/best-practice-findings/README.md`](../../.review/best-practice-findings/README.md)
 
 ## Review record
 
