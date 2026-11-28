@@ -3,6 +3,8 @@ package com.fahim.orderservice;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -43,14 +45,26 @@ class OrderProductLookupTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void createOrder_pricesFromProductServiceAndIgnoresClientSuppliedPrice() throws Exception {
+    void createOrder_pricesFromProductService() throws Exception {
+        given(productClient.fetchProduct(anyLong()))
+                .willReturn(new ProductSnapshot(1L, "Keyboard", new BigDecimal("99.99"), 50));
+
+        mockMvc.perform(createOrder("{\"productId\":1,\"quantity\":2}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.unitPrice").value(99.99))
+                .andExpect(jsonPath("$.totalPrice").value(199.98));
+    }
+
+    @Test
+    void createOrder_clientSuppliedPrice_returns400AndCreatesNothing() throws Exception {
+        // ADR-0005: the price comes from the catalog. A price field in the request isn't
+        // silently ignored, it's refused (unknown fields fail, ADR-0016).
         given(productClient.fetchProduct(anyLong()))
                 .willReturn(new ProductSnapshot(1L, "Keyboard", new BigDecimal("99.99"), 50));
 
         mockMvc.perform(createOrder("{\"productId\":1,\"quantity\":2,\"unitPrice\":0.01}"))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.unitPrice").value(99.99))
-                .andExpect(jsonPath("$.totalPrice").value(199.98));
+                .andExpect(status().isBadRequest());
+        verify(productClient, never()).fetchProduct(anyLong());
     }
 
     @Test

@@ -201,6 +201,8 @@ Rejected (original direction): splitting into an orchestrating method plus a `@T
 
 **Understand first:** how Hibernate adds `WHERE version = ?` to the UPDATE; optimistic vs pessimistic locking; ETag/`If-Match` for HTTP.
 
+**Progress (2026-11-28, `tx-order-update`), orders only:** status and quantity change through conditional updates (`WHERE status = <allowed>`, [ADR-0016](../docs/adr/0016-order-status-changes-only-through-actions.md)), so a `PUT` can no longer overwrite a concurrent confirm or cancel (`OrderStatusTransitionsTest.put_whileCancelledDuringProductCall_staysCancelled`). Not covered: two `PUT`s on the same `PENDING` order are still last-write-wins on quantity, and products and profiles are unchanged. Stays Open.
+
 </details>
 
 <details>
@@ -612,6 +614,8 @@ This is regression protection, not the T7 fix: the step 4 startup guard (refuse 
 **Breakdown (2026-11-08):** one task per method, tracked in `Interview-Preparation/tasks/` (`/task-workflow <slug>`): `tx-00-adr-no-transactional` first (the ADR, and class-level `@Transactional` moved onto each method so the parts stay independent), then one task per method: Order `create` (with #2, #22), `getAll`, `getById`, `update`, `delete`; Product `create`, `getAll`, `getById`, `update`, `delete`; Profile `register`, `getBySub`, `update`, `delete` (with #1); `tx-99-archunit-no-transactional` last.
 
 **Progress (2026-11-22, `tx-00`):** [ADR-0015](../docs/adr/0015-no-transactional-failures-recorded-as-state.md) drafted, `Proposed`. Option B: no exception at all, `readOnly` included. Failed rows are listed with their status and kept; orders start in a separate in-flight value (`CREATING`, not the business `PENDING`), and stuck in-flight rows are detected, not reaped. #1 and #2 now point to it. The class-level `@Transactional` on `OrderService` and `ProductService` has moved onto each write method, with no behaviour change. Stays Open until `tx-99`.
+
+**Progress (2026-11-28, `tx-order-update`):** `OrderService.update` has no `@Transactional`. It and the new `confirm` / `cancel` are each one conditional `@Modifying` update in `OrderRepository` (that call's own transaction, as for `save()`), re-reading the order when 0 rows change. No connection is held during the Product stock check. [ADR-0016](../docs/adr/0016-order-status-changes-only-through-actions.md) (`Proposed`, 8/10), commits `80b9880`…`3f03998`. Still Open: 13 method tasks and `tx-99` remain.
 
 **When done:** ADR in `docs/adr/`; mark it `Done`; #1 and #2 reference the ADR.
 

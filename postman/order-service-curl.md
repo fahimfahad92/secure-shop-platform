@@ -59,8 +59,19 @@ curl http://localhost:8080/orders/1 -H "Authorization: Bearer $TOKEN"
 curl -X PUT http://localhost:8080/orders/1 \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"quantity":5,"status":"CONFIRMED"}'
+  -d '{"quantity":5}'
 ```
+
+Quantity only, while the order is `PENDING`; stock is checked again. Sending `status` gets `400` (ADR-0016).
+
+## Confirm or Cancel Order
+
+```bash
+curl -X POST http://localhost:8080/orders/1/confirm -H "Authorization: Bearer $TOKEN"
+curl -X POST http://localhost:8080/orders/1/cancel -H "Authorization: Bearer $TOKEN"
+```
+
+No body. Repeating either returns the order unchanged. A confirmed order can be cancelled for 30 minutes (`orders.cancel-window`); after that, `409`.
 
 ## Delete Order
 

@@ -47,11 +47,20 @@ public class Order {
     @Column(nullable = false)
     private Instant updatedAt;
 
+    /**
+     * When {@link #status} last changed (ADR-0015). Status transitions are conditional updates in
+     * {@code OrderRepository}, which set this column themselves; bulk updates skip entity
+     * callbacks.
+     */
+    @Column(nullable = false)
+    private Instant statusChangedAt;
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();
         this.createdAt = now;
         this.updatedAt = now;
+        this.statusChangedAt = now;
         if (this.status == null) {
             this.status = OrderStatus.PENDING;
         }
@@ -124,5 +133,9 @@ public class Order {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public Instant getStatusChangedAt() {
+        return statusChangedAt;
     }
 }

@@ -358,7 +358,7 @@ Spring Boot keeps an unresolved `${KEYCLOAK_..._CLIENT_SECRET}` as literal text 
 | Service-to-service auth | Order Service calls Product Service with no credentials | Client Credentials or mTLS (project #03) |
 | Back-channel logout | Logging out in Keycloak directly doesn't end the Gateway session | OIDC back-channel logout |
 | Stock | Checked when ordering, never reduced | Reservation or decrement |
-| Order status | The owner can set any status (`PENDING`, `CONFIRMED`, `CANCELLED`) through `PUT` | Status changes owned by the system, not the client |
+| Order status | Done 2026-11-22 ([ADR-0016](adr/0016-order-status-changes-only-through-actions.md)): status changes only through `POST /orders/{id}/confirm` and `/cancel`; `PUT` changes quantity only, with a stock check. Open: the owner confirms their own order until payment exists | Payment drives confirm and cancel (#01 v2) |
 | Registration abuse | No rate limit on `POST /users/register` | Rate limit at the Gateway |
 | Gateway upstream calls | No timeouts or circuit breaker | Timeouts, `503` mapping |
 | Refresh token rotation | Off in Keycloak | Turn on, after handling parallel refreshes |
