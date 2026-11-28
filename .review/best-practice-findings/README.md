@@ -54,5 +54,6 @@ One file per finding, from `/best-practices-review` (moved from the single `best
 | 32 | MINOR | GEN-DEP | [Testcontainers version override in 3 POMs; remove when the Boot parent is >= 3.5.16](032-testcontainers-version-override-in-3-poms.md) | order, product, user | Open |
 | 33 | MINOR | GEN-OBS | [No correlation ID in error responses: a generic client error can't be matched to its log line](033-no-correlation-id-in-error-responses.md) | order, product, user, gateway | Open |
 | 34 | MINOR | SB-API | [`POST /orders` has no idempotency key: a client retry after a lost response places a second order](034-post-orders-has-no-idempotency-key.md) | order, gateway | Open |
+| 35 | MINOR | GEN-SMELL-14 | [`Order.setStatus` lets code bypass the status actions (ADR-0016)](035-order-setstatus-bypasses-status-actions.md) | order-service | Open |
 
 Suggested order (changed 2026-11-14: #4 + #29 moved first, so the #30 ADR has its precondition and its check in place): ~~4 + 29 (config)~~ done → 30 (ADR first: it sets the direction for 1, 2, 22) → 1 → 2 + 22 (both in `OrderService.create` and the Product call), 3 → 5, 6 → 7, 8 → 9, 10, 12 → 11, 13 → tests 15, 16, 17, 23, 25 → realm 24 + 26 → 18, 19, 20, 21 → docs 27, 28 (design calls; 14 belongs to project #04).
